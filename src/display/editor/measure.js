@@ -804,14 +804,28 @@ class MeasureEditor extends DrawingEditor {
     return clone;
   }
 
+  /**
+   * Reference to the most recently created drawer, kept so
+   * `supportMultipleDrawings` can honour an outliner's `isDone()` flag (the
+   * perpendicular subtype self-closes after its 3rd pointerup) WITHOUT
+   * patching DrawingEditor in draw.js. The drawer transitions to "done" in
+   * its `end(x,y)`, which DrawingEditor._endDraw calls before consulting
+   * `supportMultipleDrawings`.
+   */
+  static #currentDrawerRef = null;
+
   /** @inheritdoc */
   static get supportMultipleDrawings() {
     const sub = this._defaultMeasureSubType;
-    return (
+    const baseSupport =
       sub === MeasureSubType.POLYLINE ||
       sub === MeasureSubType.AREA ||
-      sub === MeasureSubType.PERPENDICULAR
-    );
+      sub === MeasureSubType.PERPENDICULAR;
+    if (!baseSupport) {
+      return false;
+    }
+    // Perpendicular self-closes after its 3rd vertex via isDone().
+    return MeasureEditor.#currentDrawerRef?.isDone?.() !== true;
   }
 
   /**
@@ -865,8 +879,9 @@ class MeasureEditor extends DrawingEditor {
   static createDrawerInstance(x, y, parentWidth, parentHeight, rotation) {
     const sub = this._defaultMeasureSubType;
     const thickness = this._defaultDrawingOptions["stroke-width"];
+    let drawer;
     if (sub === MeasureSubType.POLYLINE) {
-      return new MeasurePolylineOutliner(
+      drawer = new MeasurePolylineOutliner(
         x,
         y,
         parentWidth,
@@ -875,9 +890,8 @@ class MeasureEditor extends DrawingEditor {
         thickness,
         /* closed = */ false
       );
-    }
-    if (sub === MeasureSubType.AREA) {
-      return new MeasurePolylineOutliner(
+    } else if (sub === MeasureSubType.AREA) {
+      drawer = new MeasurePolylineOutliner(
         x,
         y,
         parentWidth,
@@ -886,9 +900,17 @@ class MeasureEditor extends DrawingEditor {
         thickness,
         /* closed = */ true
       );
-    }
-    if (sub === MeasureSubType.PERPENDICULAR) {
-      return new MeasurePerpendicularOutliner(
+    } else if (sub === MeasureSubType.PERPENDICULAR) {
+      drawer = new MeasurePerpendicularOutliner(
+        x,
+        y,
+        parentWidth,
+        parentHeight,
+        rotation,
+        thickness
+      );
+    } else {
+      drawer = new MeasureLineOutliner(
         x,
         y,
         parentWidth,
@@ -897,14 +919,8 @@ class MeasureEditor extends DrawingEditor {
         thickness
       );
     }
-    return new MeasureLineOutliner(
-      x,
-      y,
-      parentWidth,
-      parentHeight,
-      rotation,
-      thickness
-    );
+    MeasureEditor.#currentDrawerRef = drawer;
+    return drawer;
   }
 
   /** @inheritdoc */
