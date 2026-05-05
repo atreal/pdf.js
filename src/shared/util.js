@@ -81,6 +81,17 @@ const AnnotationEditorType = {
   POPUP: 16,
   SIGNATURE: 101,
   COMMENT: 102,
+  MEASURE: 200,
+  SCALE: 201,
+};
+
+// Sub-types for MEASURE editor (passed via measureType param).
+const MeasureSubType = {
+  DISTANCE: "distance",
+  POLYLINE: "polyline",
+  AREA: "area",
+  PERPENDICULAR: "perpendicular",
+  CALIBRATE: "calibrate",
 };
 
 const AnnotationEditorParamsType = {
@@ -98,6 +109,12 @@ const AnnotationEditorParamsType = {
   HIGHLIGHT_FREE: 33,
   HIGHLIGHT_SHOW_ALL: 34,
   DRAW_STEP: 41,
+  MEASURE_SUBTYPE: 51,
+  MEASURE_COLOR: 52,
+  MEASURE_OPACITY: 53,
+  MEASURE_LINEWIDTH: 54,
+  MEASURE_DASH: 55,
+  MEASURE_UNIT: 56,
 };
 
 // Permission flags from Table 22, Section 7.6.3.2 of the PDF specification.
@@ -1286,6 +1303,7 @@ export {
   makeArr,
   makeMap,
   makeObj,
+  MeasureSubType,
   MeshFigureType,
   normalizeUnicode,
   objectSize,

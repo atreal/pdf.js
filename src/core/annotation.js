@@ -437,6 +437,15 @@ class AnnotationFactory {
             StampAnnotation.createNewAnnotation(xref, annotation, changes, {})
           );
           break;
+        case AnnotationEditorType.MEASURE:
+          promises.push(
+            PolylineAnnotation.createNewMeasureAnnotation(
+              xref,
+              annotation,
+              changes
+            )
+          );
+          break;
       }
     }
 
@@ -4436,6 +4445,46 @@ class PolylineAnnotation extends MarkupAnnotation {
     this.data.noHTML = false;
     this.data.vertices = null;
 
+    // Detect dimension/measurement annotations (PDF 1.7 §12.5.6.10/13).
+    // When /IT is LineDimension, PolyLineDimension or PolygonDimension we
+    // expose the annotation as editable so MeasureEditor can pick it up.
+    const itName = this.data.it;
+    const isDimension =
+      itName === "LineDimension" ||
+      itName === "PolyLineDimension" ||
+      itName === "PolygonDimension";
+    if (isDimension) {
+      this.data.isMeasure = true;
+      this.data.isEditable = true;
+      // Parse the /Measure dictionary if present.
+      const measureDict = dict.get("Measure");
+      if (measureDict instanceof Dict) {
+        this.data.measure = PolylineAnnotation._parseMeasureDict(measureDict);
+      }
+      // Stroke + opacity are needed by the editor for round-tripping.
+      const ca = dict.get("CA");
+      if (typeof ca === "number") {
+        this.data.opacity = ca;
+      }
+      // /Subj — used to flag the special "calibrate" annotation that carries
+      // the document scale. MarkupAnnotation doesn't expose it by default.
+      const subj = dict.get("Subj");
+      if (typeof subj === "string") {
+        this.data.subj = stringToPDFString(subj);
+      }
+      // Custom key carrying the user-positioned label offset in PDF points
+      // (X right, Y up). Lets MeasureEditor restore the dragged label.
+      const labelOffset = dict.getArray("MeasureLabelOffset");
+      if (
+        Array.isArray(labelOffset) &&
+        labelOffset.length === 2 &&
+        typeof labelOffset[0] === "number" &&
+        typeof labelOffset[1] === "number"
+      ) {
+        this.data.labelOffset = [labelOffset[0], labelOffset[1]];
+      }
+    }
+
     if (
       (typeof PDFJSDev === "undefined" || !PDFJSDev.test("MOZCENTRAL")) &&
       !(this instanceof PolygonAnnotation)
@@ -4514,6 +4563,473 @@ class PolylineAnnotation extends MarkupAnnotation {
         },
       });
     }
+  }
+
+  /**
+   * Read the /Measure dictionary of an existing annotation and return a
+   * plain object usable on the main thread.
+   *   { scaleFactor: <m/pt>, unit: "m"|"mm"|… }
+   */
+  static _parseMeasureDict(measureDict) {
+    const result = { scaleFactor: null, unit: null };
+    try {
+      // Prefer /R: a free-form `1 pt = <scale> <unit>` text we author with
+      // full JS precision. /X[0]/C is also set, but PDF numbers go through
+      // numberToString which rounds to 2 decimals — that's fine for, say,
+      // 0.27 m/pt but ruins 0.01764 m/pt (1:50) into 0.02 (~11% off).
+      const r = measureDict.get("R");
+      if (typeof r === "string") {
+        const m = /=\s*([0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s+(\S+)/.exec(r);
+        if (m) {
+          const parsed = parseFloat(m[1]);
+          if (isFinite(parsed) && parsed > 0) {
+            result.scaleFactor = parsed;
+            result.unit = m[2];
+          }
+        }
+      }
+      // Fall back to /X[0]/C if /R is missing or unparseable.
+      const xArr = measureDict.get("X");
+      if (Array.isArray(xArr) && xArr.length > 0) {
+        const nf = xArr[0];
+        if (nf instanceof Dict) {
+          const c = nf.get("C");
+          const u = nf.get("U");
+          if (!result.scaleFactor && typeof c === "number" && c > 0) {
+            result.scaleFactor = c;
+          }
+          if (!result.unit && typeof u === "string") {
+            result.unit = u;
+          }
+        }
+      }
+    } catch {
+      // best-effort parsing — leave defaults
+    }
+    return result;
+  }
+
+  /**
+   * Build the /Measure dictionary (PDF 1.7, §8.7.5).
+   * scaleFactor: meters per PDF point (m/pt).
+   */
+  static _createMeasureDict(xref, scaleFactor, unit) {
+    const measure = new Dict(xref);
+    measure.set("Type", Name.get("Measure"));
+    // Subtype "RL" = rectilinear (default for plan annotations).
+    measure.set("Subtype", Name.get("RL"));
+    // Ratio text: "1pt = N <unit>"
+    measure.set("R", `1 pt = ${scaleFactor} ${unit}`);
+
+    const makeNumberFormat = u => {
+      const nf = new Dict(xref);
+      nf.set("Type", Name.get("NumberFormat"));
+      nf.set("U", u);
+      nf.set("C", scaleFactor);
+      // Default fraction-of-precision settings.
+      nf.set("F", Name.get("D"));
+      nf.set("D", 100);
+      return nf;
+    };
+
+    // X/Y axes (linear) — 1pt = scaleFactor <unit>
+    measure.set("X", [makeNumberFormat(unit)]);
+    // Distance display
+    measure.set("D", [makeNumberFormat(unit)]);
+    // Area display (squared unit)
+    const areaNf = new Dict(xref);
+    areaNf.set("Type", Name.get("NumberFormat"));
+    areaNf.set("U", `${unit}²`);
+    areaNf.set("C", scaleFactor * scaleFactor);
+    areaNf.set("F", Name.get("D"));
+    areaNf.set("D", 100);
+    measure.set("A", [areaNf]);
+
+    return measure;
+  }
+
+  /**
+   * Create a measurement annotation (PolyLine or Polygon) from a serialized
+   * MeasureEditor. Sets the /IT (LineDimension/PolyLineDimension/
+   * PolygonDimension) and /Measure dictionary, plus our identifying /Subj
+   * and /T fields.
+   */
+  static async createNewMeasureAnnotation(xref, annotation, changes) {
+    const annotationRef = (annotation.ref ||= xref.getNewTemporaryRef());
+    const {
+      measureSubType, // "distance" | "polyline" | "area" | "perpendicular"
+      vertices, // flat array [x1,y1,x2,y2,…] in PDF points
+      color, // [r, g, b] 0-1
+      opacity,
+      lineWidth,
+      unit,
+      scaleFactor,
+      label, // human-readable, e.g. "5.23 m"
+      labelOffset, // [dx, dy] in PDF points (X right, Y up); optional
+      rect, // [llx, lly, urx, ury]
+      date,
+      user,
+    } = annotation;
+
+    const isPolygon = measureSubType === "area";
+    const dict = new Dict(xref);
+    dict.set("Type", Name.get("Annot"));
+    dict.set("Subtype", Name.get(isPolygon ? "Polygon" : "PolyLine"));
+
+    // Intent — standard PDF 1.7 dimension intent values.
+    let it;
+    switch (measureSubType) {
+      case "distance":
+      case "perpendicular":
+        it = "LineDimension";
+        break;
+      case "polyline":
+        it = "PolyLineDimension";
+        break;
+      case "area":
+        it = "PolygonDimension";
+        break;
+      default:
+        it = "LineDimension";
+    }
+    dict.set("IT", Name.get(it));
+
+    // Vertices.
+    dict.set("Vertices", Array.from(vertices));
+
+    // Bounding box.
+    if (rect) {
+      dict.set("Rect", rect);
+    }
+
+    // Stroke color.
+    if (color) {
+      dict.set("C", getPdfColorArray(color));
+    }
+    // Opacity.
+    if (typeof opacity === "number" && opacity < 1) {
+      dict.set("CA", opacity);
+    }
+    // Border style (line width + solid).
+    if (lineWidth > 0) {
+      const bs = new Dict(xref);
+      bs.set("W", lineWidth);
+      bs.set("S", Name.get("S"));
+      dict.set("BS", bs);
+    }
+
+    // /T is shown as the popup title/author by viewers. When no user login
+    // is provided, fall back to a friendly subtype label. /Subj below is
+    // what we actually use to identify our annotations on reload.
+    const subtypeLabels = {
+      distance: "Mesure distance",
+      polyline: "Mesure polyligne",
+      area: "Mesure surface",
+      perpendicular: "Mesure perpendiculaire",
+      calibrate: "Étalonnage d'échelle",
+    };
+    const titleText = user || subtypeLabels[measureSubType] || "Mesure";
+    dict.set("T", stringToAsciiOrUTF16BE(titleText));
+    dict.set(
+      "Subj",
+      stringToAsciiOrUTF16BE(`pdfjs-measure-${measureSubType}`)
+    );
+    // /Contents combines the measure label and the user comment so a viewer
+    // showing the popup (Firefox, Adobe…) sees both. The "\n———\n" separator
+    // is a stable round-trip marker that's also readable as a horizontal rule.
+    const userComment =
+      annotation.popup && !annotation.popup.deleted
+        ? annotation.popup.contents
+        : null;
+    let contents = "";
+    if (label && userComment) {
+      contents = `${label}\n———\n${userComment}`;
+    } else if (userComment) {
+      contents = userComment;
+    } else if (label) {
+      contents = label;
+    }
+    if (contents) {
+      dict.set("Contents", stringToAsciiOrUTF16BE(contents));
+    }
+    dict.set("NM", `pdfjs-measure-${annotationRef.toString()}`);
+    dict.set("CreationDate", `D:${getModificationDate(date)}`);
+    dict.set("M", `D:${getModificationDate(date)}`);
+
+    if (
+      Array.isArray(labelOffset) &&
+      labelOffset.length === 2 &&
+      (labelOffset[0] !== 0 || labelOffset[1] !== 0)
+    ) {
+      dict.set("MeasureLabelOffset", [labelOffset[0], labelOffset[1]]);
+    }
+
+    // Flags: /F 4 = printable.
+    dict.set("F", 4);
+
+    // /Measure dictionary.
+    if (typeof scaleFactor === "number" && scaleFactor > 0) {
+      dict.set(
+        "Measure",
+        PolylineAnnotation._createMeasureDict(xref, scaleFactor, unit || "m")
+      );
+    }
+
+    // Border (legacy field still expected by some readers).
+    dict.set("Border", [0, 0, 0]);
+
+    // Appearance stream — without it, third-party readers (Adobe, Foxit,
+    // Preview…) won't render the annotation. pdf.js itself can regenerate
+    // an appearance from /Vertices but only as a fallback.
+    const appearance = PolylineAnnotation._createMeasureAppearanceStream(
+      annotation,
+      xref
+    );
+    if (appearance) {
+      const apRef = xref.getNewTemporaryRef();
+      changes.put(apRef, { data: appearance });
+      const ap = new Dict(xref);
+      ap.set("N", apRef);
+      dict.set("AP", ap);
+    }
+
+    changes.put(annotationRef, { data: dict });
+
+    // Attach a /Popup annotation whenever there's anything to show (label or
+    // user comment). Without an explicit /Popup ref, some viewers — notably
+    // Firefox-bundled pdf.js stable releases — don't auto-create a popup for
+    // PolyLine, so neither /T nor /Contents would be visible.
+    if (contents) {
+      // Reuse the existing popup ref when re-saving an edited annotation so
+      // we don't accumulate orphan popup objects in the page's /Annots array
+      // (each orphan would be parsed as a stand-alone Markup on reload).
+      const reuseRef =
+        annotation.popupRef && Ref.fromString(annotation.popupRef);
+      const popupRef = reuseRef || xref.getNewTemporaryRef();
+      const popupAnnot = annotation.popup || {};
+      popupAnnot.parent = annotationRef;
+      popupAnnot.rect ||= rect;
+      const popupDict = PopupAnnotation.createNewDict(popupAnnot, xref, {});
+      changes.put(popupRef, { data: popupDict });
+      dict.set("Popup", popupRef);
+      return [{ ref: annotationRef }, { ref: popupRef }];
+    }
+
+    return { ref: annotationRef };
+  }
+
+  /**
+   * Build the appearance stream (Form XObject) for a measurement.
+   * For PolyLine: sequence of moveto + lineto commands followed by stroke.
+   * For Polygon: same, but the path is closed and filled+stroked.
+   */
+  static _createMeasureAppearanceStream(annotation, xref) {
+    const {
+      measureSubType,
+      vertices,
+      color,
+      opacity,
+      lineWidth,
+      rect,
+      label,
+      labelOffset,
+    } = annotation;
+    if (!color || !Array.isArray(vertices) || vertices.length < 4 || !rect) {
+      return null;
+    }
+    // getPdfColor() expects color in 0-255 (it divides by 255 internally).
+    // Be tolerant if the caller already passed 0-1 values.
+    const max = Math.max(color[0], color[1], color[2]);
+    const color255 = max <= 1 ? color.map(c => c * 255) : color.slice();
+
+    // Draw the path in form space anchored at (0, 0) — this is the most
+    // widely supported convention (Adobe, Foxit, Preview, mupdf). We then
+    // reposition the form via Matrix so it lands on the annotation Rect.
+    const [llx, lly, urx, ury] = rect;
+    const w = urx - llx;
+    const h = ury - lly;
+
+    const isPolygon = measureSubType === "area";
+    const isPerpendicular = measureSubType === "perpendicular";
+    // Polygons always get a softer fill so the inside reads as filled but
+    // the outline stays prominent. Combined with the user-set opacity if any.
+    const fillAlpha = isPolygon
+      ? 0.25 * (typeof opacity === "number" ? opacity : 1)
+      : null;
+    const hasGs = (typeof opacity === "number" && opacity < 1) || isPolygon;
+    const buf = [
+      "q",
+      `${numberToString(lineWidth || 1)} w`,
+      "1 J 1 j",
+      `${getPdfColor(color255, /* isFill */ false)}`,
+    ];
+    if (isPolygon) {
+      buf.push(`${getPdfColor(color255, /* isFill */ true)}`);
+    }
+    if (hasGs) {
+      buf.push("/R0 gs");
+    }
+    // Move into form-local coords (subtract rect's lower-left).
+    if (isPerpendicular && vertices.length >= 8) {
+      // Two distinct subpaths: base + perpendicular leg.
+      const v = vertices;
+      const m = (a, b) =>
+        `${numberToString(a - llx)} ${numberToString(b - lly)}`;
+      buf.push(`${m(v[0], v[1])} m`);
+      buf.push(`${m(v[2], v[3])} l`);
+      buf.push(`${m(v[4], v[5])} m`);
+      buf.push(`${m(v[6], v[7])} l`);
+    } else {
+      buf.push(
+        `${numberToString(vertices[0] - llx)} ${numberToString(vertices[1] - lly)} m`
+      );
+      for (let i = 2, ii = vertices.length; i < ii; i += 2) {
+        buf.push(
+          `${numberToString(vertices[i] - llx)} ${numberToString(vertices[i + 1] - lly)} l`
+        );
+      }
+    }
+    buf.push(isPolygon ? "h B" : "S");
+    buf.push("Q");
+
+    // Bake the human-readable measurement label as text in the appearance
+    // stream so non-pdfjs viewers (Adobe, Foxit, Preview) display it at the
+    // same position the user dragged it to.
+    const hasLabel = typeof label === "string" && label.length > 0;
+    if (hasLabel) {
+      const labelStr = PolylineAnnotation._asciifyLabel(label);
+      const fontSize = 9;
+      const charW = fontSize * 0.5; // rough Helvetica em width
+      const textW = labelStr.length * charW;
+      const textH = fontSize * 1.2;
+      const padX = 2;
+      const padY = 1;
+
+      const { cx, cy } = PolylineAnnotation._labelCenter(
+        measureSubType,
+        vertices
+      );
+      let labelX = cx;
+      let labelY = cy;
+      if (
+        Array.isArray(labelOffset) &&
+        labelOffset.length === 2 &&
+        (labelOffset[0] || labelOffset[1])
+      ) {
+        labelX += labelOffset[0];
+        labelY += labelOffset[1];
+      }
+      // Form-local coords (anchor at rect's lower-left).
+      const lx = labelX - llx;
+      const ly = labelY - lly;
+      const bgX = lx - textW / 2 - padX;
+      const bgY = ly - textH / 2 - padY;
+      const bgW = textW + 2 * padX;
+      const bgH = textH + 2 * padY;
+      const tx = lx - textW / 2;
+      const ty = ly - fontSize / 2 + 1; // Td places baseline; nudge for centering
+
+      buf.push("q");
+      buf.push("1 1 1 rg"); // white fill for the text background
+      buf.push(
+        `${numberToString(bgX)} ${numberToString(bgY)} ${numberToString(bgW)} ${numberToString(bgH)} re f`
+      );
+      buf.push("0 0 0 rg"); // black fill for the text glyphs
+      buf.push("BT");
+      buf.push(`/F1 ${fontSize} Tf`);
+      buf.push(`${numberToString(tx)} ${numberToString(ty)} Td`);
+      buf.push(`(${PolylineAnnotation._escapePdfString(labelStr)}) Tj`);
+      buf.push("ET");
+      buf.push("Q");
+    }
+
+    const appearance = buf.join("\n");
+
+    const apDict = new Dict(xref);
+    apDict.set("FormType", 1);
+    apDict.set("Subtype", Name.get("Form"));
+    apDict.set("Type", Name.get("XObject"));
+    // BBox MUST match Rect (modulo Matrix translation) — when it doesn't,
+    // PDF readers compute a scale factor to fit BBox into Rect, which
+    // visibly compresses the trace. Labels that fall outside the rect get
+    // clipped; we accept that to keep geometry pixel-perfect.
+    apDict.set("BBox", [0, 0, w, h]);
+    apDict.set("Matrix", [1, 0, 0, 1, llx, lly]);
+    apDict.set("Length", appearance.length);
+
+    const resources = new Dict(xref);
+    if (hasGs) {
+      const extGState = new Dict(xref);
+      const r0 = new Dict(xref);
+      r0.set("CA", typeof opacity === "number" ? opacity : 1);
+      if (isPolygon) {
+        r0.set("ca", fillAlpha);
+      }
+      r0.set("Type", Name.get("ExtGState"));
+      extGState.set("R0", r0);
+      resources.set("ExtGState", extGState);
+    }
+    if (hasLabel) {
+      const fontDict = new Dict(xref);
+      const helvetica = new Dict(xref);
+      helvetica.set("Type", Name.get("Font"));
+      helvetica.set("Subtype", Name.get("Type1"));
+      helvetica.set("BaseFont", Name.get("Helvetica"));
+      helvetica.set("Encoding", Name.get("WinAnsiEncoding"));
+      fontDict.set("F1", helvetica);
+      resources.set("Font", fontDict);
+    }
+    if (hasGs || hasLabel) {
+      apDict.set("Resources", resources);
+    }
+
+    const stream = new StringStream(appearance);
+    stream.dict = apDict;
+    return stream;
+  }
+
+  // Center of the geometry's bounding box — matches MeasureEditor's CSS
+  // label which is `top: 50%; left: 50%` of the editor's div, itself sized
+  // to the polyline bbox. Using the centroid instead would shift the label
+  // for L-shapes/polygons after save+reload.
+  static _labelCenter(_measureSubType, vertices) {
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (let i = 0; i < vertices.length; i += 2) {
+      const x = vertices[i];
+      const y = vertices[i + 1];
+      if (x < minX) {
+        minX = x;
+      }
+      if (x > maxX) {
+        maxX = x;
+      }
+      if (y < minY) {
+        minY = y;
+      }
+      if (y > maxY) {
+        maxY = y;
+      }
+    }
+    return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+  }
+
+  // Helvetica (WinAnsi) covers most Latin chars but not Unicode dashes,
+  // primes, etc. Strip combining marks, transliterate the few special chars
+  // we actually emit (², m², em-dash) and drop anything still out of range.
+  static _asciifyLabel(s) {
+    return s
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/²/g, "2")
+      .replace(/[—–]/g, "-")
+      .replace(/[^\x20-\x7e]/g, "?");
+  }
+
+  static _escapePdfString(s) {
+    return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
   }
 }
 
