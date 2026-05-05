@@ -35,6 +35,7 @@ import { AnnotationEditor } from "./editor.js";
 import { FreeTextEditor } from "./freetext.js";
 import { HighlightEditor } from "./highlight.js";
 import { InkEditor } from "./ink.js";
+import { MeasureEditor } from "./measure.js";
 import { SignatureEditor } from "./signature.js";
 import { StampEditor } from "./stamp.js";
 
@@ -104,6 +105,7 @@ class AnnotationEditorLayer {
       StampEditor,
       HighlightEditor,
       SignatureEditor,
+      MeasureEditor,
     ].map(type => [type._editorType, type])
   );
 
@@ -249,6 +251,26 @@ class AnnotationEditorLayer {
     return this.#editors.size !== 0
       ? this.#editors.values()
       : this.#uiManager.getEditors(this.pageIndex);
+  }
+
+  /**
+   * Expose the underlying AnnotationLayer's container div so that custom
+   * editors (MeasureEditor) can inject DOM that has to inherit the
+   * `.annotationLayer` CSS scope (popup styling, etc.).
+   * @returns {HTMLElement|null}
+   */
+  get annotationLayerDiv() {
+    return this.#annotationLayer?.div || null;
+  }
+
+  /**
+   * Expose the underlying AnnotationLayer instance so custom editors can
+   * synthesize a "view-only" AnnotationElement (popup, hover) for measures
+   * that have been drawn but not yet saved+reloaded.
+   * @returns {AnnotationLayer|null}
+   */
+  get annotationLayer() {
+    return this.#annotationLayer || null;
   }
 
   /**
@@ -512,6 +534,22 @@ class AnnotationEditorLayer {
     const pointerup = this.pointerup.bind(this);
     this.div.addEventListener("pointerup", pointerup, { signal });
     this.div.addEventListener("pointercancel", pointerup, { signal });
+
+    // Some drawer subtypes (multi-segment measures) commit on dblclick rather
+    // than blur, since the mouse stays on the layer while the user adds
+    // vertices and a `pointerdown` outside isn't a natural exit gesture.
+    this.div.addEventListener(
+      "dblclick",
+      event => {
+        if (
+          event.target === this.div &&
+          this.#currentEditorType?.endDrawingOnDoubleClick
+        ) {
+          this.endDrawingSession(/* isAborted = */ false);
+        }
+      },
+      { signal }
+    );
   }
 
   disableClick() {
@@ -726,6 +764,16 @@ class AnnotationEditorLayer {
    * @returns {Promise<AnnotationEditor | null>}
    */
   async deserialize(data) {
+    // Existing dimension annotations (PolyLine/Polygon with /IT
+    // LineDimension|PolyLineDimension|PolygonDimension) need to be routed to
+    // MeasureEditor by inspection — they arrive as PolylineAnnotationElement
+    // instances and don't carry an annotationType field yet.
+    const fromAnnotElt = data?.data;
+    if (fromAnnotElt?.isMeasure || data?.isMeasure) {
+      return (
+        (await MeasureEditor.deserialize(data, this, this.#uiManager)) || null
+      );
+    }
     return (
       (await AnnotationEditorLayer.#editorTypes
         .get(data.annotationType ?? data.annotationEditorType)
@@ -837,10 +885,10 @@ class AnnotationEditorLayer {
     }
     this.#hadPointerDown = false;
 
-    if (
-      this.#currentEditorType?.isDrawer &&
-      this.#currentEditorType.supportMultipleDrawings
-    ) {
+    if (this.#currentEditorType?.isDrawer) {
+      // Drawer pipelines (Ink, Measure) own their own creation flow via
+      // startDrawing/_endDraw → createAndAddNewEditor. The pointerup here
+      // would otherwise spawn an empty editor in parallel.
       return;
     }
 
@@ -911,6 +959,15 @@ class AnnotationEditorLayer {
 
     this.#uiManager.setCurrentDrawingSession(this);
     this.#drawingAC = new AbortController();
+    // Multi-vertex drawing sessions (polyline / area): keep the protection on
+    // for the whole session — between strokes the per-stroke `drawing` class
+    // is off, which would otherwise let the user accidentally drag an
+    // existing editor when adding the next vertex. Single-stroke editors
+    // (distance / calibrate) don't need this and shouldn't lock subsequent
+    // editor interactions.
+    if (this.#currentEditorType?.supportMultipleDrawings) {
+      this.div.classList.add("drawingSession");
+    }
     const signal = this.#uiManager.combinedSignal(this.#drawingAC);
     this.div.addEventListener(
       "blur",
@@ -949,6 +1006,7 @@ class AnnotationEditorLayer {
     this.#drawingAC.abort();
     this.#drawingAC = null;
     this.#focusedElement = null;
+    this.div.classList.remove("drawingSession");
     return this.#currentEditorType.endDrawing(isAborted);
   }
 

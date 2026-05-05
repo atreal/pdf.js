@@ -2787,7 +2787,7 @@ class PopupElement {
     }
     popup.append(header);
 
-    if (this.#dateObj) {
+    if (this.#dateObj && this.#dateObj.getFullYear() >= 1971) {
       const modificationDate = document.createElement("time");
       modificationDate.className = "popupDate";
       modificationDate.setAttribute(
@@ -3340,8 +3340,34 @@ class PolylineAnnotationElement extends AnnotationElement {
       this._createPopup();
     }
 
+    // Restore the document scale at PDF load time, before the user opens the
+    // measure editor. Without this, freshly loaded documents would show
+    // measurements in raw PDF points and the panel would say "non calibrée".
+    const { measure, subj } = this.data;
+    if (
+      subj === "pdfjs-measure-calibrate" &&
+      measure?.scaleFactor &&
+      measure.scaleFactor !== 1
+    ) {
+      const ratioN = Math.round(measure.scaleFactor / 0.000352777778);
+      this.linkService?.eventBus?.dispatch("measure-scale-calibrated", {
+        source: this,
+        scaleFactor: measure.scaleFactor,
+        ratioN,
+      });
+    }
+
+    // Measure annotations (PolyLine/Polygon flagged via /IT *Dimension) are
+    // editable through MeasureEditor — wire the editor type then attach the
+    // standard dblclick → switchannotationeditormode handler.
+    if (this.data.isMeasure) {
+      this.annotationEditorType = AnnotationEditorType.MEASURE;
+      this._editOnDoubleClick();
+    }
+
     return this.container;
   }
+
 
   getElementsToTriggerPopup() {
     return this.#polyline;
@@ -3778,6 +3804,8 @@ class AnnotationLayer {
 
   #hasAriaAttributesFromStructTree = false;
 
+  #syntheticElementParams = null;
+
   zIndex = 0;
 
   constructor({
@@ -3849,6 +3877,11 @@ class AnnotationLayer {
       parent: this,
       elements: null,
     };
+    // Stash the per-page params so editors that synthesize a view-only
+    // annotation (e.g. MeasureEditor, after commit) can reuse the same
+    // factory wiring without having to thread linkService / svgFactory /
+    // … through the editor stack.
+    this.#syntheticElementParams = elementParams;
 
     for (const data of annotations) {
       if (data.noHTML) {
@@ -4160,6 +4193,56 @@ class AnnotationLayer {
   }
 
   /**
+   * Build, render and append an AnnotationElement straight from a data
+   * object — used for "view-only" representations of annotations that
+   * exist only in memory (e.g. a MeasureEditor that has been committed
+   * but not yet saved/reloaded). The synthetic element is wired to the
+   * same `linkService`, `svgFactory` and `parent` as the real ones so
+   * popups and click handlers behave identically.
+   *
+   * The element is intentionally NOT registered in `#editableAnnotations`
+   * — when the user re-enters edit mode, AnnotationEditorLayer.enable()
+   * iterates that map to deserialize each editable into an editor, and
+   * we don't want a synthetic element to spawn a duplicate editor.
+   *
+   * Returns the rendered element (with `show()`, `hide()`, `remove()`
+   * helpers) or null when the layer hasn't been rendered yet.
+   *
+   * @param {Object} data - The annotation data, in the same shape that
+   *   the worker produces for native /Annots.
+   * @returns {{ element: AnnotationElement, root: HTMLElement, show: () => void, hide: () => void, remove: () => void } | null}
+   */
+  createSyntheticElement(data) {
+    if (!this.#syntheticElementParams) {
+      return null;
+    }
+    const params = { ...this.#syntheticElementParams, data, elements: null };
+    const element = AnnotationElementFactory.create(params);
+    if (!element.isRenderable) {
+      return null;
+    }
+    const root = element.render();
+    this.div.append(root);
+    return {
+      element,
+      root,
+      show() {
+        root.style.visibility = "";
+      },
+      hide() {
+        root.style.visibility = "hidden";
+      },
+      remove() {
+        root.remove();
+        const popup = element.layer?.querySelector?.(
+          `[data-annotation-id="popup_${data.id}"]`
+        );
+        popup?.remove();
+      },
+    };
+  }
+
+  /**
    * @private
    */
   static get _defaultBorderStyle() {
@@ -4183,5 +4266,7 @@ export {
   FreeTextAnnotationElement,
   HighlightAnnotationElement,
   InkAnnotationElement,
+  PolygonAnnotationElement,
+  PolylineAnnotationElement,
   StampAnnotationElement,
 };
