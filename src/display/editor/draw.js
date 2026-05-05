@@ -888,11 +888,7 @@ class DrawingEditor extends AnnotationEditor {
         DrawingEditor.#currentDraw.end(event.offsetX, event.offsetY)
       );
     }
-    // A drawer can opt out of the multi-draw "stay open" branch by returning
-    // true from isDone() — used for the perpendicular subtype which closes
-    // the session automatically on the third pointerup.
-    const drawerIsDone = DrawingEditor.#currentDraw?.isDone?.() === true;
-    if (this.supportMultipleDrawings && !drawerIsDone) {
+    if (this.supportMultipleDrawings) {
       const draw = DrawingEditor.#currentDraw;
       const drawId = this._currentDrawId;
       const lastElement = draw.getLastElement();
