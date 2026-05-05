@@ -602,6 +602,49 @@ See https://github.com/adobe-type-tools/cmap-resources
                       </div>
                     </div>
                   </div>
+                  <div class="verticalToolbarSeparator"></div>
+                  <div id="editorMeasureDistance" class="toolbarButtonWithContainer">
+                    <button id="editorMeasureDistanceButton" class="toolbarButton" type="button" disabled="disabled" role="radio" aria-expanded="false" aria-haspopup="true" aria-controls="editorMeasureParamsToolbar" tabindex="0" title="Distance" aria-label="Distance">
+                    </button>
+                    <div class="editorParamsToolbar hidden doorHangerRight" id="editorMeasureParamsToolbar">
+                      <div class="editorParamsToolbarContainer">
+                        <div class="editorParamsSetter">
+                          <span id="editorMeasureScaleLabel" style="font-size:12px;color:#666;">Échelle : non calibrée</span>
+                        </div>
+                        <div class="editorParamsSetter">
+                          <label for="editorMeasureColor" class="editorParamsLabel">Couleur</label>
+                          <input type="color" id="editorMeasureColor" class="editorParamsColor" tabindex="0" value="#FF0000">
+                        </div>
+                        <div class="editorParamsSetter">
+                          <label for="editorMeasureLineWidth" class="editorParamsLabel">Épaisseur</label>
+                          <input type="range" id="editorMeasureLineWidth" class="editorParamsSlider" tabindex="0" value="2" min="1" max="10" step="1">
+                        </div>
+                        <div class="editorParamsSetter">
+                          <label for="editorMeasureOpacity" class="editorParamsLabel">Opacité</label>
+                          <input type="range" id="editorMeasureOpacity" class="editorParamsSlider" tabindex="0" value="100" min="10" max="100" step="5">
+                        </div>
+                        <div class="editorParamsSetter">
+                          <span id="editorMeasureHint" style="font-size:11px;color:#888;">Distance / Étalonner : un glisser. Perpendiculaire : 3 clics (base + perpendiculaire). Polyligne / Surface : cliquez chaque sommet, double-cliquez pour terminer.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="editorMeasurePolyline" class="toolbarButtonWithContainer">
+                    <button id="editorMeasurePolylineButton" class="toolbarButton" type="button" disabled="disabled" role="radio" tabindex="0" title="Polyligne (cliquez chaque sommet, double-cliquez pour terminer)" aria-label="Polyligne">
+                    </button>
+                  </div>
+                  <div id="editorMeasureArea" class="toolbarButtonWithContainer">
+                    <button id="editorMeasureAreaButton" class="toolbarButton" type="button" disabled="disabled" role="radio" tabindex="0" title="Surface (cliquez chaque sommet, double-cliquez pour fermer)" aria-label="Surface">
+                    </button>
+                  </div>
+                  <div id="editorMeasurePerpendicular" class="toolbarButtonWithContainer">
+                    <button id="editorMeasurePerpendicularButton" class="toolbarButton" type="button" disabled="disabled" role="radio" tabindex="0" title="Perpendiculaire" aria-label="Perpendiculaire">
+                    </button>
+                  </div>
+                  <div id="editorMeasureCalibrate" class="toolbarButtonWithContainer">
+                    <button id="editorMeasureCalibrateButton" class="toolbarButton" type="button" disabled="disabled" role="radio" tabindex="0" title="Étalonner l'échelle (tracer une cote connue puis saisir sa valeur réelle)" aria-label="Étalonner l'échelle">
+                    </button>
+                  </div>
                 </div>
 
                 <div id="editorModeSeparator" class="verticalToolbarSeparator"></div>

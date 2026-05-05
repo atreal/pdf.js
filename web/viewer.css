@@ -83,6 +83,11 @@
   --toolbarButton-editorInk-icon: url(images/toolbarButton-editorInk.svg);
   --toolbarButton-editorStamp-icon: url(images/toolbarButton-editorStamp.svg);
   --toolbarButton-editorSignature-icon: url(images/toolbarButton-editorSignature.svg);
+  --toolbarButton-editorMeasureDistance-icon: url(images/toolbarButton-editorMeasureDistance.svg);
+  --toolbarButton-editorMeasurePolyline-icon: url(images/toolbarButton-editorMeasurePolyline.svg);
+  --toolbarButton-editorMeasureArea-icon: url(images/toolbarButton-editorMeasureArea.svg);
+  --toolbarButton-editorMeasurePerpendicular-icon: url(images/toolbarButton-editorMeasurePerpendicular.svg);
+  --toolbarButton-editorMeasureCalibrate-icon: url(images/toolbarButton-editorMeasureCalibrate.svg);
   --toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow.svg);
   --toolbarButton-viewsManagerToggle-icon: url(images/toolbarButton-viewsManagerToggle.svg);
   --toolbarButton-secondaryToolbarToggle-icon: url(images/toolbarButton-secondaryToolbarToggle.svg);
@@ -479,6 +484,22 @@ body {
 
 #editorSignatureButton::before {
   mask-image: var(--toolbarButton-editorSignature-icon);
+}
+
+#editorMeasureDistanceButton::before {
+  mask-image: var(--toolbarButton-editorMeasureDistance-icon);
+}
+#editorMeasurePolylineButton::before {
+  mask-image: var(--toolbarButton-editorMeasurePolyline-icon);
+}
+#editorMeasureAreaButton::before {
+  mask-image: var(--toolbarButton-editorMeasureArea-icon);
+}
+#editorMeasurePerpendicularButton::before {
+  mask-image: var(--toolbarButton-editorMeasurePerpendicular-icon);
+}
+#editorMeasureCalibrateButton::before {
+  mask-image: var(--toolbarButton-editorMeasureCalibrate-icon);
 }
 
 #printButton::before {

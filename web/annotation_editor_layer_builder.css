@@ -128,6 +128,39 @@
     pointer-events: none !important;
   }
 
+  /* Multi-vertex drawing sessions (polyline / area): the per-stroke `drawing`
+   * class is toggled off between vertices, which would let the user drag an
+   * existing editor (e.g. a polygon under the cursor) when placing the next
+   * vertex. Keep pointer events disabled on every editor for the whole
+   * session. */
+  &.drawingSession :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
+    pointer-events: none !important;
+  }
+
+  /* Existing measure editors must never intercept pointer events while any
+   * editing mode is active:
+   *  - In MEASURE mode (any subtype), the user wants to draw a new measure
+   *    even when starting from inside an existing area / over a distance line.
+   *  - In other editing modes (Highlight, Ink, …), clicking an existing
+   *    measure would otherwise fire setSelected → updateToolbar →
+   *    auto-switch to MEASURE mode and silently activate the Distance button.
+   * Selected editors keep pointer events so the just-drawn one can be
+   * dragged / resized / deleted. */
+  &:not(.disabled) .measureEditor:not(.selectedEditor) {
+    pointer-events: none !important;
+  }
+
+  /* In NONE / view mode the editor layer is `.disabled` (pointer-events:none
+   * on the layer itself) but the editor div, having default pointer-events,
+   * still catches mouse events ahead of the synthetic AnnotationElement we
+   * inject in the layer below for the read-only popup hover. Make the
+   * editor div transparent to pointer events so hover reaches the
+   * underlying PolylineAnnotationElement. */
+  &.disabled .measureEditor {
+    pointer-events: none !important;
+  }
+
+
   &.getElements {
     pointer-events: auto !important;
     > div {
@@ -148,6 +181,14 @@
 .annotationEditorLayer.disabled {
   pointer-events: none;
 
+  /* In highlight mode the editor layer is "disabled" (pointer-events: none)
+   * so that pointerdown reaches the textLayer for selection highlighting.
+   * Existing editors are re-enabled here so the user can still drag/edit
+   * them — but `.measureEditor` is intentionally excluded: clicking an
+   * existing measure would otherwise fire setSelected → updateToolbar →
+   * auto-switch back to MEASURE mode and silently activate the Distance
+   * button (the first measure subtype). The user's intent in highlight mode
+   * is to highlight text, possibly text that lies under a measure. */
   &.highlightEditing
     :is(
       .freeTextEditor,
@@ -156,6 +197,9 @@
       .signatureEditor,
       .commentPopup
     ) {
+    pointer-events: auto;
+  }
+  &.highlightEditing .measureEditor.selectedEditor {
     pointer-events: auto;
   }
 }
@@ -172,8 +216,48 @@
   box-sizing: border-box;
 }
 
+.annotationEditorLayer .measureEditor .measureLabel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgb(255 255 255 / 85%);
+  color: #000;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font:
+    11px / 1.2 system-ui,
+    sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  cursor: move;
+  touch-action: none;
+}
+
+/* Make the label hit-testable only when its editor is selected so it doesn't
+ * eat clicks meant for the underlying page or annotation tracé. */
+.annotationEditorLayer .measureEditor.selectedEditor .measureLabel {
+  pointer-events: auto;
+}
+
+/* Calibrate annotation = the one that carries the document scale.
+ * Visually distinct so users can spot it at a glance and re-edit if needed. */
+.annotationEditorLayer .measureEditor.measureCalibrate .measureLabel {
+  background: #f59e0b;
+  color: #fff;
+  font-weight: 600;
+  border: 1px solid #b45309;
+}
+
+.annotationEditorLayer.measureEditing {
+  cursor: crosshair;
+}
+
+
 .annotationEditorLayer
-  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor) {
+  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
   position: absolute;
   background: transparent;
   z-index: 1;
@@ -234,6 +318,7 @@
   :is(
     .freeTextEditor,
     .inkEditor,
+    .measureEditor,
     .stampEditor,
     .highlightEditor,
     .signatureEditor
@@ -626,7 +711,7 @@
 }
 
 .annotationEditorLayer {
-  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor) {
+  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
     & > .resizers {
       position: absolute;
       inset: 0;
