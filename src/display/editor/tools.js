@@ -2065,6 +2065,9 @@ class AnnotationEditorUIManager {
     this.#commentManager?.destroyPopup();
 
     this.#mode = mode;
+    if (mode !== AnnotationEditorType.MEASURE) {
+      this.#viewer?.classList.remove("measureMultiVertexMode");
+    }
     if (mode === AnnotationEditorType.NONE) {
       this.setEditingState(false);
       this.#disableAll();
@@ -2187,6 +2190,37 @@ class AnnotationEditorUIManager {
    */
   updateParams(type, value) {
     if (!this.#editorTypes) {
+      return;
+    }
+
+    if (type === AnnotationEditorParamsType.MEASURE_SUBTYPE) {
+      const isMultiVertex =
+        value === "polyline" ||
+        value === "area" ||
+        value === "perpendicular";
+      this.#viewer.classList.toggle(
+        "measureMultiVertexMode",
+        isMultiVertex
+      );
+      // Drop any selection: the just-drawn editor keeps the
+      // `.selectedEditor` class which our CSS uses to keep it interactive,
+      // but it would now intercept the user's next click instead of
+      // starting a new drawing of the freshly-selected subtype.
+      for (const ed of [...this.#selectedEditors]) {
+        ed.unselect();
+      }
+      this.#selectedEditors.clear();
+      // MEASURE_SUBTYPE is a tool-level setting (which subtype the *next*
+      // drawing will be). It must always update the editor type's default
+      // and never apply to the currently-selected editor — otherwise, when
+      // the user finishes a Distance (which leaves the editor selected) and
+      // then clicks the Surface button, hasSelection routes the param to
+      // the selected editor (which doesn't expose this type), and the
+      // static default stays on "distance" so the next click still draws a
+      // distance.
+      for (const editorType of this.#editorTypes) {
+        editorType.updateDefaultParams(type, value);
+      }
       return;
     }
 
