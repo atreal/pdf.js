@@ -59,6 +59,10 @@ class AnnotationEditorParams {
     editorFreeHighlightThickness,
     editorHighlightShowAll,
     editorSignatureAddSignature,
+    editorMeasureColor,
+    editorMeasureLineWidth,
+    editorMeasureOpacity,
+    editorMeasureScaleLabel,
   }) {
     const { eventBus } = this;
 
@@ -155,6 +159,28 @@ class AnnotationEditorParams {
     editorSignatureAddSignature.addEventListener("click", () => {
       dispatchEvent("CREATE");
     });
+    if (editorMeasureColor) {
+      editorMeasureColor.addEventListener("input", function () {
+        dispatchEvent("MEASURE_COLOR", this.value);
+      });
+    }
+    if (editorMeasureLineWidth) {
+      editorMeasureLineWidth.addEventListener("input", function () {
+        dispatchEvent("MEASURE_LINEWIDTH", this.valueAsNumber);
+      });
+    }
+    if (editorMeasureOpacity) {
+      editorMeasureOpacity.addEventListener("input", function () {
+        dispatchEvent("MEASURE_OPACITY", this.valueAsNumber / 100);
+      });
+    }
+    if (editorMeasureScaleLabel) {
+      eventBus._on("measure-scale-calibrated", ({ ratioN }) => {
+        editorMeasureScaleLabel.textContent = ratioN
+          ? `Échelle : 1:${ratioN}`
+          : "Échelle : non calibrée";
+      });
+    }
 
     eventBus.on(
       "annotationeditorparamschanged",

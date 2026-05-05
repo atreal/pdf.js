@@ -15,6 +15,7 @@
 
 import { ScrollMode, SpreadMode } from "./ui_utils.js";
 import { AppOptions } from "./app_options.js";
+import { initOpenadsBridge } from "./openads_bridge.js";
 import { LinkTarget } from "./pdf_link_service.js";
 import { PDFViewerApplication } from "./app.js";
 import { RenderingStates } from "./renderable_view.js";
@@ -70,6 +71,31 @@ function getViewerConfiguration() {
       editorSignatureButton: document.getElementById("editorSignatureButton"),
       editorSignatureParamsToolbar: document.getElementById(
         "editorSignatureParamsToolbar"
+      ),
+      editorMeasureDistanceButton: document.getElementById(
+        "editorMeasureDistanceButton"
+      ),
+      editorMeasurePolylineButton: document.getElementById(
+        "editorMeasurePolylineButton"
+      ),
+      editorMeasureAreaButton: document.getElementById(
+        "editorMeasureAreaButton"
+      ),
+      editorMeasurePerpendicularButton: document.getElementById(
+        "editorMeasurePerpendicularButton"
+      ),
+      editorMeasureCalibrateButton: document.getElementById(
+        "editorMeasureCalibrateButton"
+      ),
+      editorMeasureParamsToolbar: document.getElementById(
+        "editorMeasureParamsToolbar"
+      ),
+      editorMeasureColor: document.getElementById("editorMeasureColor"),
+      editorMeasureLineWidth: document.getElementById(
+        "editorMeasureLineWidth"
+      ),
+      editorMeasureScaleLabel: document.getElementById(
+        "editorMeasureScaleLabel"
       ),
       download: document.getElementById("downloadButton"),
     },
@@ -326,6 +352,14 @@ function getViewerConfiguration() {
         "editorFreeHighlightThickness"
       ),
       editorHighlightShowAll: document.getElementById("editorHighlightShowAll"),
+      editorMeasureColor: document.getElementById("editorMeasureColor"),
+      editorMeasureLineWidth: document.getElementById(
+        "editorMeasureLineWidth"
+      ),
+      editorMeasureOpacity: document.getElementById("editorMeasureOpacity"),
+      editorMeasureScaleLabel: document.getElementById(
+        "editorMeasureScaleLabel"
+      ),
     },
     printContainer: document.getElementById("printContainer"),
     editorUndoBar: {
@@ -372,6 +406,12 @@ function webViewerLoad() {
     }
   }
   PDFViewerApplication.run(config);
+
+  // Wire the optional openADS bridge (only active when the viewer is
+  // loaded inside an iframe or with ?openads=1).
+  PDFViewerApplication.initializedPromise.then(() => {
+    initOpenadsBridge(PDFViewerApplication);
+  });
 }
 
 // Block the "load" event until all pages are loaded, to ensure that printing

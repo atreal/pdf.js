@@ -148,9 +148,96 @@ class Toolbar {
 
     // Bind the event listeners for click and various other actions.
     this.#bindListeners(buttons);
+    this.#bindMeasureToolButtons();
 
     this.#updateToolbarDensity({ value: toolbarDensity });
     this.reset();
+  }
+
+  static #MEASURE_SUBTYPE_PARAMS = 51; // AnnotationEditorParamsType.MEASURE_SUBTYPE
+
+  static #measureSubTypes = [
+    ["editorMeasureDistanceButton", "distance"],
+    ["editorMeasurePolylineButton", "polyline"],
+    ["editorMeasureAreaButton", "area"],
+    ["editorMeasurePerpendicularButton", "perpendicular"],
+    ["editorMeasureCalibrateButton", "calibrate"],
+  ];
+
+  #activeMeasureSubType = "distance";
+
+  #bindMeasureToolButtons() {
+    const { eventBus } = this;
+    for (const [optKey, subtype] of Toolbar.#measureSubTypes) {
+      const btn = this.#opts[optKey];
+      if (!btn) {
+        continue;
+      }
+      btn.addEventListener("click", evt => {
+        const isToggled = btn.classList.contains("toggled");
+        const sameSubType = this.#activeMeasureSubType === subtype;
+        const turnOff = isToggled && sameSubType;
+        const newMode = turnOff
+          ? AnnotationEditorType.NONE
+          : AnnotationEditorType.MEASURE;
+
+        // Update the visual toggle state immediately. We can't rely solely on
+        // `annotationeditormodechanged`: when the user just switches subtype
+        // (mode stays MEASURE), pdf_viewer.set annotationEditorMode early-
+        // returns and the event isn't re-dispatched.
+        if (!turnOff) {
+          this.#activeMeasureSubType = subtype;
+        }
+        this.#updateMeasureButtonsVisual(turnOff ? null : subtype);
+
+        eventBus.dispatch("switchannotationeditormode", {
+          source: this,
+          mode: newMode,
+          isFromKeyboard: evt.detail === 0,
+        });
+
+        if (!turnOff) {
+          eventBus.dispatch("switchannotationeditorparams", {
+            source: this,
+            type: Toolbar.#MEASURE_SUBTYPE_PARAMS,
+            value: subtype,
+          });
+        }
+      });
+    }
+  }
+
+  #updateMeasureButtonsVisual(activeSubtype) {
+    const {
+      editorMeasureDistanceButton,
+      editorMeasurePolylineButton,
+      editorMeasureAreaButton,
+      editorMeasurePerpendicularButton,
+      editorMeasureCalibrateButton,
+      editorMeasureParamsToolbar,
+    } = this.#opts;
+    const map = [
+      [editorMeasureDistanceButton, "distance"],
+      [editorMeasurePolylineButton, "polyline"],
+      [editorMeasureAreaButton, "area"],
+      [editorMeasurePerpendicularButton, "perpendicular"],
+      [editorMeasureCalibrateButton, "calibrate"],
+    ];
+    for (const [btn, sub] of map) {
+      if (!btn) {
+        continue;
+      }
+      const isActive = sub === activeSubtype;
+      if (btn === editorMeasureDistanceButton) {
+        toggleExpandedBtn(btn, isActive, editorMeasureParamsToolbar);
+      } else {
+        btn.classList.toggle("toggled", isActive);
+        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+      }
+    }
+    if (editorMeasureParamsToolbar) {
+      editorMeasureParamsToolbar.classList.toggle("hidden", !activeSubtype);
+    }
   }
 
   #updateToolbarDensity({ value }) {
@@ -295,6 +382,16 @@ class Toolbar {
       internalOpt
     );
 
+    // Track which measure subtype is currently active so editorModeChanged
+    // can highlight the matching toolbar button.
+    eventBus._on("annotationeditorparamschanged", evt => {
+      for (const [type, value] of evt.details) {
+        if (type === Toolbar.#MEASURE_SUBTYPE_PARAMS) {
+          this.#activeMeasureSubType = value;
+        }
+      }
+    });
+
     if (editorHighlightColorPicker) {
       eventBus.on(
         "annotationeditoruimanager",
@@ -330,6 +427,12 @@ class Toolbar {
       editorStampParamsToolbar,
       editorSignatureButton,
       editorSignatureParamsToolbar,
+      editorMeasureDistanceButton,
+      editorMeasurePolylineButton,
+      editorMeasureAreaButton,
+      editorMeasurePerpendicularButton,
+      editorMeasureCalibrateButton,
+      editorMeasureParamsToolbar,
     } = this.#opts;
 
     toggleExpandedBtn(
@@ -362,14 +465,30 @@ class Toolbar {
       mode === AnnotationEditorType.SIGNATURE,
       editorSignatureParamsToolbar
     );
+    // Measure: 5 toolbar buttons share one params panel anchored to Distance.
+    const inMeasure = mode === AnnotationEditorType.MEASURE;
+    this.#updateMeasureButtonsVisual(
+      inMeasure ? this.#activeMeasureSubType : null
+    );
 
-    editorCommentButton.disabled =
-      editorFreeTextButton.disabled =
-      editorHighlightButton.disabled =
-      editorInkButton.disabled =
-      editorStampButton.disabled =
-      editorSignatureButton.disabled =
-        mode === AnnotationEditorType.DISABLE;
+    const isDisable = mode === AnnotationEditorType.DISABLE;
+    editorCommentButton.disabled = isDisable;
+    editorFreeTextButton.disabled = isDisable;
+    editorHighlightButton.disabled = isDisable;
+    editorInkButton.disabled = isDisable;
+    editorStampButton.disabled = isDisable;
+    editorSignatureButton.disabled = isDisable;
+    for (const btn of [
+      editorMeasureDistanceButton,
+      editorMeasurePolylineButton,
+      editorMeasureAreaButton,
+      editorMeasurePerpendicularButton,
+      editorMeasureCalibrateButton,
+    ]) {
+      if (btn) {
+        btn.disabled = isDisable;
+      }
+    }
   }
 
   #updateUIState(resetNumPages = false) {

@@ -120,6 +120,19 @@
     box-sizing: border-box;
     transform-origin: 0 0;
     user-select: none;
+  }
+
+  /* When an editor mode is active (annotation_editor_layer.js toggles
+   * `.disabled` on the annotation layer) we must let pointer events pass
+   * through so the user can draw over existing annotations. Without this,
+   * the SVG triggers (popup hover areas) and section boxes intercept the
+   * draw pointer events and the cursor flips to selection mid-stroke. */
+  &.disabled section,
+  &.disabled svg {
+    pointer-events: none;
+  }
+
+  section {
 
     &:has(div.annotationContent) {
       canvas.annotationContent {
