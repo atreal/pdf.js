@@ -1694,6 +1694,20 @@ class MeasureEditor extends DrawingEditor {
     this.#removeViewElement();
   }
 
+  /**
+   * Base AnnotationEditor.enterInEditMode() short-circuits when
+   * `canChangeContent` is false (true only for FreeText). For measures the
+   * relevant entry point is `enableEditing` — it strips the `.disabled`
+   * class from the editor div and removes the synthetic view element so the
+   * vertex outlines become manipulable again. Both dblclick paths land here:
+   * the base editor's `dblclick` handler on the editor div (selected editors
+   * intercept events first), and the synthetic SVG's manual listener routed
+   * via `switchannotationeditormode` → `updateMode` → `enterInEditMode`.
+   */
+  enterInEditMode() {
+    this.enableEditing();
+  }
+
   /** @inheritdoc */
   pointerdown(event) {
     // In NONE / view mode the editor div may be pointer-events:auto so the

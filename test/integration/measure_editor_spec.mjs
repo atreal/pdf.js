@@ -587,4 +587,196 @@ describe("MeasureEditor", () => {
       );
     });
   });
+
+  // --------------------------------------------------------------------- //
+  // Regression coverage for the four post-rebase regressions.             //
+  // Each spec fails on the pre-fix branch and passes after its fix.       //
+  // --------------------------------------------------------------------- //
+  describe("Regression coverage", () => {
+    let pages;
+
+    beforeEach(async () => {
+      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+    });
+
+    afterEach(async () => {
+      await closePages(pages);
+    });
+
+    // R1 — enableComment was flipped to false in non-test bundles by an
+    // upstream conflict resolution. Without it the CommentManager isn't
+    // instantiated and the hover-comment affordance disappears entirely.
+    // pdfViewer._layerProperties.enableComment is `!!commentManager` (see
+    // pdf_viewer.js:667-669), so this also proves the manager wired up.
+    it("R1: enableComment is true so CommentManager is constructed", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          const enabled = await page.evaluate(
+            () => !!window.PDFViewerApplication.pdfViewer
+              ?._layerProperties?.enableComment
+          );
+          expect(enabled).toBe(true);
+        })
+      );
+    });
+
+    // R3 — A freshly drawn measure could not be re-edited by double-clicking
+    // because MeasureEditor inherited canChangeContent=false, which makes
+    // AnnotationEditor.enterInEditMode() bail before calling enableEditing.
+    // After the fix dblclick lifts the .disabled class and removes the
+    // synthetic view element so vertices become manipulable again.
+    it("R3: dblclick on a fresh distance re-enables editing in-place", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 200,
+            rect.x + 350,
+            rect.y + 200
+          );
+          await waitForStorageEntries(page, 1);
+          // Post-commit the editor div carries the .disabled class.
+          await page.waitForSelector(".measureEditor.disabled");
+
+          // Stay in MEASURE mode (no toggle-out): the editor div sits on top
+          // and intercepts the dblclick — that's the case the regression
+          // was about.
+          const editorBox = await page.evaluate(() => {
+            const el = document.querySelector(".measureEditor.selectedEditor");
+            const r = el.getBoundingClientRect();
+            return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+          });
+          await page.mouse.click(editorBox.x, editorBox.y, { count: 2 });
+
+          // After the fix MeasureEditor.enterInEditMode() calls enableEditing,
+          // which removes the .disabled class.
+          await page.waitForFunction(
+            () =>
+              !document
+                .querySelector(".measureEditor.selectedEditor")
+                ?.classList.contains("disabled")
+          );
+        })
+      );
+    });
+
+    // R2 — After committing a measure the editor stays selected, so
+    // toolbar param changes were taking the hasSelection branch in
+    // updateParams() and updating the just-drawn editor's color instead of
+    // _defaultDrawingOptions. The next drag therefore reused the *previous*
+    // default. The fix routes MEASURE_COLOR/LINEWIDTH/OPACITY/UNIT to the
+    // editor type defaults regardless of selection state.
+    it("R2: toolbar color change after a draw applies to the next drag", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          // First distance — uses the default red.
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 200,
+            rect.x + 350,
+            rect.y + 200
+          );
+          await waitForStorageEntries(page, 1);
+
+          // Drive the color picker the way the toolbar does
+          // (web/annotation_editor_params.js:161-164).
+          await page.evaluate(() => {
+            const input = document.getElementById("editorMeasureColor");
+            input.value = "#00ff00";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          });
+          // Let the eventBus dispatch land before the next drag.
+          await waitForTimeout(page, 50);
+
+          // Second distance — should use the new green default. With the
+          // pre-fix behavior it would still be red because the param was
+          // routed to the selected (first) editor.
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 300,
+            rect.x + 350,
+            rect.y + 300
+          );
+          await waitForStorageEntries(page, 2);
+
+          const measures = await getMeasureSerialized(page);
+          expect(measures.length).toBe(2);
+          // PDF y increases upward, so the measure drawn at the *higher*
+          // screen-y coordinate (rect.y + 300) ends up with the *lower* PDF
+          // y. Sort ascending by vertices[1] to identify "second drawn".
+          const sorted = [...measures].sort(
+            (a, b) => a.vertices[1] - b.vertices[1]
+          );
+          const secondDrawn = sorted[0];
+          // The regression manifested as the second drag still using the
+          // original red default (G < R). After the fix the toolbar color
+          // change feeds _defaultDrawingOptions, so the second drag is green.
+          expect(secondDrawn.color[1]).toBeGreaterThan(secondDrawn.color[0]);
+        })
+      );
+    });
+
+    // R4 — In-progress multi-vertex drawings (vertices placed but not yet
+    // double-clicked to commit) live in DrawingEditor.#currentDraw and have
+    // no MeasureEditor instance yet, so annotationStorage.print misses them.
+    // The fix is a `beforeprint` listener on AnnotationEditorUIManager that
+    // calls commitOrRemove(), which ends the current drawing session and
+    // adds the resulting editor to storage before the print snapshot.
+    it("R4: in-progress polyline is flushed to storage on beforeprint", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "polyline");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          // Place 3 vertices but do NOT double-click — drawing session
+          // remains open.
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 100,
+            rect.x + 200,
+            rect.y + 100
+          );
+          await clickVertex(page, rect.x + 300, rect.y + 200);
+          await clickVertex(page, rect.x + 400, rect.y + 100);
+
+          // No MeasureEditor exists yet — storage is empty.
+          const sizeBefore = await page.evaluate(
+            () =>
+              window.PDFViewerApplication.pdfDocument.annotationStorage.size
+          );
+          expect(sizeBefore)
+            .withContext("storage must be empty during the drawing session")
+            .toBe(0);
+
+          // Synchronously dispatch beforeprint — the UIManager listener
+          // commits the in-progress drawing.
+          await page.evaluate(() =>
+            window.PDFViewerApplication.eventBus.dispatch("beforeprint", {
+              source: window,
+            })
+          );
+
+          await waitForStorageEntries(page, 1);
+          const measures = await getMeasureSerialized(page);
+          expect(measures.length).toBe(1);
+          expect(measures[0].measureSubType).toBe("polyline");
+          // ≥ 3 vertices (6 floats).
+          expect(measures[0].vertices.length).toBeGreaterThanOrEqual(6);
+        })
+      );
+    });
+  });
 });

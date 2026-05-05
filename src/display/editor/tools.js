@@ -950,6 +950,13 @@ class AnnotationEditorUIManager {
       evt => this.updateParams(evt.type, evt.value),
       { signal }
     );
+    // Flush any in-progress edit/drawing session before the print snapshot
+    // runs. `app.beforePrint` reads `annotationStorage.print` after an
+    // awaited `dispatchWillPrint`, so this synchronous listener always
+    // lands first. Without it, an in-progress polyline/area session
+    // (vertices placed but not yet double-clicked) is lost from the print
+    // output because no MeasureEditor exists yet to be serialized.
+    eventBus._on("beforeprint", () => this.commitOrRemove(), { signal });
     window.addEventListener(
       "pointerdown",
       () => {
@@ -2216,6 +2223,28 @@ class AnnotationEditorUIManager {
         editorType.updateDefaultParams(type, value);
       }
       return;
+    }
+
+    // MEASURE_COLOR / LINEWIDTH / OPACITY / DASH / UNIT are toolbar inputs
+    // that configure the *next* drawing. After a measure is drawn it stays
+    // selected (auto-select in onceAdded), so without this branch the
+    // hasSelection path below would route the change to the just-drawn
+    // editor only and leave _defaultDrawingOptions stale — the next drag
+    // would reuse the *previous* color. Always feed defaults here, then
+    // fall through to the hasSelection path so the per-editor
+    // BasicColorPicker (rendered on the selected editor's toolbar) still
+    // updates that editor's visible color simultaneously.
+    if (
+      type === AnnotationEditorParamsType.MEASURE_COLOR ||
+      type === AnnotationEditorParamsType.MEASURE_LINEWIDTH ||
+      type === AnnotationEditorParamsType.MEASURE_OPACITY ||
+      type === AnnotationEditorParamsType.MEASURE_DASH ||
+      type === AnnotationEditorParamsType.MEASURE_UNIT
+    ) {
+      for (const editorType of this.#editorTypes) {
+        editorType.updateDefaultParams(type, value);
+      }
+      // Fall through.
     }
 
     switch (type) {
