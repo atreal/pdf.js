@@ -566,14 +566,25 @@ class MeasurePerpendicularOutliner {
   }
 
   #projectOnBase(x, y) {
-    const dx = this.#v1x - this.#v0x;
-    const dy = this.#v1y - this.#v0y;
+    // Work in physical (pixel) space so the dot-product is Euclidean.
+    // Normalized coords (0-1) are non-square on non-square pages, which
+    // would make a geometrically perpendicular vector appear skewed.
+    const pw = this.#parentWidth;
+    const ph = this.#parentHeight;
+    const ax = this.#v0x * pw;
+    const ay = this.#v0y * ph;
+    const bx = this.#v1x * pw;
+    const by = this.#v1y * ph;
+    const px = x * pw;
+    const py = y * ph;
+    const dx = bx - ax;
+    const dy = by - ay;
     const len2 = dx * dx + dy * dy;
     if (len2 === 0) {
       return [this.#v0x, this.#v0y];
     }
-    const t = ((x - this.#v0x) * dx + (y - this.#v0y) * dy) / len2;
-    return [this.#v0x + t * dx, this.#v0y + t * dy];
+    const t = ((px - ax) * dx + (py - ay) * dy) / len2;
+    return [(ax + t * dx) / pw, (ay + t * dy) / ph];
   }
 
   add(x, y) {

@@ -559,6 +559,18 @@ class AnnotationFactory {
             )
           );
           break;
+        case AnnotationEditorType.MEASURE:
+          promises.push(
+            PolylineAnnotation.createNewPrintAnnotation(
+              annotationGlobals,
+              xref,
+              annotation,
+              {
+                evaluatorOptions: options,
+              }
+            )
+          );
+          break;
       }
     }
 
@@ -5030,6 +5042,68 @@ class PolylineAnnotation extends MarkupAnnotation {
 
   static _escapePdfString(s) {
     return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  }
+
+  // ── Print support ──────────────────────────────────────────────────────────
+  // These three methods follow the same pattern used by InkAnnotation so that
+  // measure annotations are rendered by the worker during print just like any
+  // other editor annotation type.
+
+  static createNewDict(annotation, xref, { ap } = {}) {
+    const { measureSubType, vertices, color, opacity, lineWidth, rect } =
+      annotation;
+    const isPolygon = measureSubType === "area";
+    const dict = new Dict(xref);
+    dict.set("Type", Name.get("Annot"));
+    dict.set("Subtype", Name.get(isPolygon ? "Polygon" : "PolyLine"));
+    dict.set("F", 4); // printable
+    if (rect) {
+      dict.set("Rect", rect);
+    }
+    if (vertices) {
+      dict.set("Vertices", Array.from(vertices));
+    }
+    if (color) {
+      dict.set("C", getPdfColorArray(color));
+    }
+    if (typeof opacity === "number" && opacity < 1) {
+      dict.set("CA", opacity);
+    }
+    if (lineWidth > 0) {
+      const bs = new Dict(xref);
+      bs.set("W", lineWidth);
+      dict.set("BS", bs);
+    }
+    if (ap) {
+      const apDict = new Dict(xref);
+      apDict.set("N", ap);
+      dict.set("AP", apDict);
+    }
+    return dict;
+  }
+
+  static async createNewAppearanceStream(annotation, xref, _params) {
+    return PolylineAnnotation._createMeasureAppearanceStream(annotation, xref);
+  }
+
+  static async createNewPrintAnnotation(
+    annotationGlobals,
+    xref,
+    annotation,
+    params
+  ) {
+    const ap = await this.createNewAppearanceStream(annotation, xref, params);
+    const annotationDict = this.createNewDict(annotation, xref, ap ? { ap } : {});
+    const newAnnotation = new this.prototype.constructor({
+      dict: annotationDict,
+      xref,
+      annotationGlobals,
+      evaluatorOptions: params.evaluatorOptions,
+    });
+    if (annotation.ref) {
+      newAnnotation.ref = newAnnotation.refToReplace = annotation.ref;
+    }
+    return newAnnotation;
   }
 }
 
