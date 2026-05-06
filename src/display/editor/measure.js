@@ -38,7 +38,7 @@ import { PolylineAnnotationElement } from "../annotation_layer.js";
  * deliver post-validation pointer events, that causes ghost re-opens of
  * the prompt.
  */
-function promptCalibrationDistance(currentValue = "1") {
+function promptCalibrationDistance(measuredMm, currentValue = "1") {
   return new Promise(resolve => {
     let dialog = document.getElementById("pdfjsMeasureCalibrateDialog");
     if (!dialog) {
@@ -47,6 +47,7 @@ function promptCalibrationDistance(currentValue = "1") {
       dialog.innerHTML = `
         <form method="dialog" style="display:flex;flex-direction:column;gap:12px;min-width:320px;font:13px system-ui,sans-serif;">
           <h2 style="margin:0;font-size:14px;font-weight:600;">Étalonnage de l'échelle</h2>
+          <p data-hint style="margin:0;padding:6px 8px;background:#f0f4ff;border-radius:4px;font-size:12px;color:#333;"></p>
           <label style="display:flex;flex-direction:column;gap:6px;">
             Distance réelle de la cote tracée (en mètres) :
             <input type="number" min="0" step="any" required style="padding:6px 8px;border:1px solid #999;border-radius:4px;font:inherit;" />
@@ -58,6 +59,10 @@ function promptCalibrationDistance(currentValue = "1") {
         </form>
       `;
       document.body.append(dialog);
+    }
+    const hintEl = dialog.querySelector("[data-hint]");
+    if (hintEl) {
+      hintEl.textContent = `Longueur mesurée sur le plan : ${measuredMm.toFixed(2)} mm`;
     }
     const input = dialog.querySelector("input");
     const cancelBtn = dialog.querySelector('[data-action="cancel"]');
@@ -1206,9 +1211,11 @@ class MeasureEditor extends DrawingEditor {
       return false;
     }
     MeasureEditor._calibratingNow = true;
+    // 1 PDF point = 0.352777778 mm
+    const measuredMm = pdfDistance * 0.352777778;
     let realDistance;
     try {
-      realDistance = await promptCalibrationDistance("1");
+      realDistance = await promptCalibrationDistance(measuredMm, "1");
     } finally {
       MeasureEditor._calibratingNow = false;
     }
