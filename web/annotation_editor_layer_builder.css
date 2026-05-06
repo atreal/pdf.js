@@ -137,18 +137,17 @@
     pointer-events: none !important;
   }
 
-  /* Existing measure editors must never intercept pointer events while any
-   * editing mode is active:
-   *  - In MEASURE mode (any subtype), the user wants to draw a new measure
-   *    even when starting from inside an existing area / over a distance line.
-   *  - In other editing modes (Highlight, Ink, …), clicking an existing
-   *    measure would otherwise fire setSelected → updateToolbar →
-   *    auto-switch to MEASURE mode and silently activate the Distance button.
-   * Selected editors keep pointer events so the just-drawn one can be
-   * dragged / resized / deleted. */
-  &:not(.disabled) .measureEditor:not(.selectedEditor) {
+  /* In other editing modes (Highlight, Ink, …), clicking an existing measure
+   * would fire setSelected → updateToolbar → auto-switch to MEASURE mode and
+   * silently activate the Distance button. Block that. */
+  &:not(.disabled):not(.measureEditing) .measureEditor:not(.selectedEditor) {
     pointer-events: none !important;
   }
+
+  /* In MEASURE mode, block clicks on existing measures only while a drawing
+   * session is in progress (already covered by .drawingSession above, but
+   * kept here for clarity). Between drawings the user can click an existing
+   * measure to select it, then Delete/Backspace to remove it. */
 
   /* In NONE / view mode the editor layer is `.disabled` (pointer-events:none
    * on the layer itself) but the editor div, having default pointer-events,
@@ -253,6 +252,12 @@
 
 .annotationEditorLayer.measureEditing {
   cursor: crosshair;
+
+  /* In MEASURE mode (idle), hovering over an existing measure shows a pointer
+   * cursor so users understand they can click to select (then Delete). */
+  .measureEditor:not(.selectedEditor):hover {
+    cursor: pointer;
+  }
 }
 
 
