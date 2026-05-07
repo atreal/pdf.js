@@ -892,6 +892,16 @@ class AnnotationEditorLayer {
       return;
     }
 
+    // Mode sélection MEASURE (isDrawer = false car aucun sous-type actif) :
+    // un clic sur le fond dé-sélectionne tout mais ne crée aucun éditeur.
+    if (
+      this.#uiManager.getMode() === AnnotationEditorType.MEASURE &&
+      !this.#currentEditorType?.isDrawer
+    ) {
+      this.#uiManager.unselectAll();
+      return;
+    }
+
     if (!this.#allowClick) {
       this.#allowClick = true;
       return;

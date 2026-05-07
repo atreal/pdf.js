@@ -137,9 +137,9 @@
     pointer-events: none !important;
   }
 
-  /* In other editing modes (Highlight, Ink, …), clicking an existing measure
-   * would fire setSelected → updateToolbar → auto-switch to MEASURE mode and
-   * silently activate the Distance button. Block that. */
+  /* Dans les autres modes d'édition (Highlight, Ink, …), cliquer sur une
+   * mesure existante déclencherait setSelected → updateToolbar → passage
+   * silencieux en mode MEASURE. On bloque ça. */
   &:not(.disabled):not(.measureEditing) .measureEditor:not(.selectedEditor) {
     pointer-events: none !important;
   }
@@ -250,11 +250,21 @@
   border: 1px solid #b45309;
 }
 
-.annotationEditorLayer.measureEditing {
+/* Mode dessin MEASURE (un sous-type de tracé est actif) : curseur croix et
+ * les éditeurs de mesure existants ne captent pas les clics — sinon ils
+ * intercepteraient le pointerdown qui devrait démarrer un nouveau tracé. */
+#viewer:not(.measureSelecting) .annotationEditorLayer.measureEditing {
   cursor: crosshair;
 
-  /* In MEASURE mode (idle), hovering over an existing measure shows a pointer
-   * cursor so users understand they can click to select (then Delete). */
+  .measureEditor:not(.selectedEditor) {
+    pointer-events: none !important;
+  }
+}
+
+/* Mode sélection MEASURE (aucun sous-type actif, bouton re-cliqué) :
+ * les éditeurs existants sont interactifs (clic = sélection, puis
+ * Suppr/Backspace pour supprimer). */
+#viewer.measureSelecting .annotationEditorLayer.measureEditing {
   .measureEditor:not(.selectedEditor):hover {
     cursor: pointer;
   }

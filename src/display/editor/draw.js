@@ -909,7 +909,12 @@ class DrawingEditor extends AnnotationEditor {
       return;
     }
 
-    this.endDrawing(/* isAborted = */ false);
+    // Single-stroke completion (distance, calibrate, perpendicular at isDone):
+    // route through the layer's endDrawingSession so its #drawingAC and
+    // uiManager.#currentDrawingSession are reset BEFORE the new editor's
+    // onceAdded → commit → setSelected re-enters and would otherwise trigger
+    // a duplicate creation via #currentDrawingSession.commitOrRemove().
+    parent.endDrawingSession(/* isAborted = */ false);
   }
 
   static endDrawing(isAborted) {

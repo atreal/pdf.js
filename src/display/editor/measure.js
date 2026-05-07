@@ -845,6 +845,15 @@ class MeasureEditor extends DrawingEditor {
   }
 
   /**
+   * En mode sélection (aucun sous-type actif), on ne veut pas démarrer
+   * un tracé — un pointerdown lance la sélection d'un éditeur existant.
+   * @inheritdoc
+   */
+  static get isDrawer() {
+    return !!MeasureEditor._defaultMeasureSubType;
+  }
+
+  /**
    * Custom flag consumed by AnnotationEditorLayer's dblclick listener to know
    * whether a double-click on the layer should commit the in-progress drawing
    * (true for polyline/area, false for single-segment subtypes — perpendicular
@@ -1416,12 +1425,51 @@ class MeasureEditor extends DrawingEditor {
   _onTranslated() {
     super._onTranslated();
     this._refreshLabel();
+    this._refreshViewElement();
   }
 
   /** @inheritdoc */
   _onResized() {
     super._onResized();
     this._refreshLabel();
+    this._refreshViewElement();
+  }
+
+  // Public (non-#) for the same reason as `_refreshLabel`: `_onResized` is
+  // invoked from `#updateBbox` during `super(params)`, before the subclass's
+  // private slots are installed on `this`. The `#viewElement in this` brand
+  // check returns false in that window so we bail out without throwing.
+  _refreshViewElement() {
+    if (!(#viewElement in this)) {
+      return;
+    }
+    if (!this.#viewElement) {
+      return;
+    }
+    this.#removeViewElement();
+    this.#showViewElement();
+  }
+
+  /** @inheritdoc */
+  _onStartDragging() {
+    super._onStartDragging();
+    if (!(#viewElement in this)) {
+      return;
+    }
+    this.#viewElement?.hide?.();
+  }
+
+  /** @inheritdoc */
+  _onStopDragging() {
+    super._onStopDragging();
+    if (!(#viewElement in this)) {
+      return;
+    }
+    if (!this.#viewElement) {
+      return;
+    }
+    this.#removeViewElement();
+    this.#showViewElement();
   }
 
   /** @inheritdoc */
