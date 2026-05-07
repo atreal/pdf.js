@@ -174,35 +174,26 @@ class Toolbar {
         continue;
       }
       btn.addEventListener("click", evt => {
-        const isToggled = btn.classList.contains("toggled");
-        const sameSubType = this.#activeMeasureSubType === subtype;
-        const turnOff = isToggled && sameSubType;
-        const newMode = turnOff
-          ? AnnotationEditorType.NONE
-          : AnnotationEditorType.MEASURE;
+        // Re-cliquer le sous-type déjà actif passe en mode sélection (null),
+        // cliquer un autre bouton active ce sous-type en mode dessin.
+        // Le mode MEASURE reste toujours actif — la sortie vers un autre mode
+        // est gérée par les boutons FreeText, Ink, etc. de la barre principale.
+        const enterSelectionMode = btn.classList.contains("toggled");
+        const newSubType = enterSelectionMode ? null : subtype;
 
-        // Update the visual toggle state immediately. We can't rely solely on
-        // `annotationeditormodechanged`: when the user just switches subtype
-        // (mode stays MEASURE), pdf_viewer.set annotationEditorMode early-
-        // returns and the event isn't re-dispatched.
-        if (!turnOff) {
-          this.#activeMeasureSubType = subtype;
-        }
-        this.#updateMeasureButtonsVisual(turnOff ? null : subtype);
+        this.#activeMeasureSubType = newSubType;
+        this.#updateMeasureButtonsVisual(newSubType);
 
         eventBus.dispatch("switchannotationeditormode", {
           source: this,
-          mode: newMode,
+          mode: AnnotationEditorType.MEASURE,
           isFromKeyboard: evt.detail === 0,
         });
-
-        if (!turnOff) {
-          eventBus.dispatch("switchannotationeditorparams", {
-            source: this,
-            type: Toolbar.#MEASURE_SUBTYPE_PARAMS,
-            value: subtype,
-          });
-        }
+        eventBus.dispatch("switchannotationeditorparams", {
+          source: this,
+          type: Toolbar.#MEASURE_SUBTYPE_PARAMS,
+          value: newSubType,
+        });
       });
     }
   }

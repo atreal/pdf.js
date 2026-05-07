@@ -2074,6 +2074,7 @@ class AnnotationEditorUIManager {
     this.#mode = mode;
     if (mode !== AnnotationEditorType.MEASURE) {
       this.#viewer?.classList.remove("measureMultiVertexMode");
+      this.#viewer?.classList.remove("measureSelecting");
     }
     if (mode === AnnotationEditorType.NONE) {
       this.setEditingState(false);
@@ -2209,6 +2210,9 @@ class AnnotationEditorUIManager {
         "measureMultiVertexMode",
         isMultiVertex
       );
+      // null = mode sélection (aucun sous-type actif, le curseur est une flèche
+      // et les éditeurs existants sont cliquables). Non-null = mode dessin.
+      this.#viewer?.classList.toggle("measureSelecting", !value);
       // Drop any selection: the just-drawn editor keeps the
       // `.selectedEditor` class which our CSS uses to keep it interactive,
       // but it would now intercept the user's next click instead of
@@ -2662,6 +2666,11 @@ class AnnotationEditorUIManager {
   commitOrRemove() {
     // An editor is being edited so just commit it.
     this.#activeEditor?.commitOrRemove();
+    // Flush any in-progress drawing session (polyline/area vertices placed but
+    // not yet double-clicked to finalize). Without this, the MeasureEditor is
+    // never created before PrintAnnotationStorage is built, so the annotation
+    // is missing from the print output.
+    this.#currentDrawingSession?.commitOrRemove();
   }
 
   hasSomethingToControl() {
