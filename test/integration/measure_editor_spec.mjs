@@ -29,7 +29,22 @@ import {
   waitForTimeout,
 } from "./test_utils.mjs";
 
-const switchToMeasure = switchToEditor.bind(null, "Measure");
+// The legacy `#editorMeasureButton` no longer exists — the toolbar now
+// exposes one button per subtype, and clicking any of them switches to
+// MEASURE mode + activates that subtype. So `switchToMeasure` becomes a
+// no-op (the subsequent `selectSubType` does the actual switch). The
+// `disable` case (switch out of MEASURE) is handled by clicking another
+// editor button (e.g. Ink, FreeText) — covered by `switchToOtherEditor`.
+async function switchToMeasure(page, disable = false) {
+  if (disable) {
+    // Switch to a different editor mode to leave MEASURE behind. We use
+    // FreeText since its toggle is independent from MEASURE.
+    await switchToEditor("FreeText", page);
+    return;
+  }
+  // No-op — the test's next `selectSubType` clicks a subtype button which
+  // implicitly enters MEASURE mode.
+}
 const MEASURE_TYPE = 200;
 
 /**
@@ -59,10 +74,38 @@ async function clickVertex(page, x, y) {
 }
 
 async function selectSubType(page, sub) {
-  // The subtype select lives in the measure params toolbar.
-  await page.select("#editorMeasureSubType", sub);
+  // The legacy <select id="editorMeasureSubType"> was replaced by a button
+  // group (one toggle button per subtype). Clicking the button enters
+  // MEASURE mode (if not already in it) AND activates that subtype.
+  // Re-clicking an already-toggled button switches to selection mode (no
+  // subtype active), so we skip the click in that case.
+  const cap = sub.charAt(0).toUpperCase() + sub.slice(1);
+  const buttonId = `#editorMeasure${cap}Button`;
+  const toggled = await page.evaluate(sel => {
+    const btn = document.querySelector(sel);
+    return btn ? btn.classList.contains("toggled") : false;
+  }, buttonId);
+  if (!toggled) {
+    await page.click(buttonId);
+    // Wait for the layer to enter measureEditing mode.
+    await page.waitForSelector(".annotationEditorLayer.measureEditing");
+  }
   // Allow the eventBus dispatch to land before the next interaction.
   await waitForTimeout(page, 50);
+}
+
+async function clickSubTypeButton(page, sub) {
+  const cap = sub.charAt(0).toUpperCase() + sub.slice(1);
+  await page.click(`#editorMeasure${cap}Button`);
+  await waitForTimeout(page, 50);
+}
+
+async function isSubTypeToggled(page, sub) {
+  const cap = sub.charAt(0).toUpperCase() + sub.slice(1);
+  return page.evaluate(
+    sel => !!document.querySelector(sel)?.classList.contains("toggled"),
+    `#editorMeasure${cap}Button`
+  );
 }
 
 async function getMeasureSerialized(page) {
@@ -417,20 +460,11 @@ describe("MeasureEditor", () => {
           await switchToMeasure(page);
           await selectSubType(page, "area");
 
-          const def = await page.evaluate(
-            () =>
-              window.PDFViewerApplication.pdfDocument
-                ?._transport?.messageHandler // probe is best-effort
-          );
-          // We don't have a public API for the static default, so probe via
-          // the params event to confirm the round-trip.
-          const sub = await page.evaluate(
-            sel => document.querySelector(sel).value,
-            "#editorMeasureSubType"
-          );
-          expect(sub).toBe("area");
-          // (def is just a non-throwing probe)
-          expect(def === undefined || typeof def === "object").toBe(true);
+          // The active subtype is reflected by the `.toggled` class on the
+          // dedicated button in the measure params toolbar (the legacy
+          // <select id="editorMeasureSubType"> no longer exists).
+          expect(await isSubTypeToggled(page, "area")).toBe(true);
+          expect(await isSubTypeToggled(page, "distance")).toBe(false);
         })
       );
     });
@@ -775,6 +809,69 @@ describe("MeasureEditor", () => {
           expect(measures[0].measureSubType).toBe("polyline");
           // ≥ 3 vertices (6 floats).
           expect(measures[0].vertices.length).toBeGreaterThanOrEqual(6);
+        })
+      );
+    });
+
+    // R5 — Single-stroke subtypes (distance, calibrate, perpendicular at
+    // isDone) used to spawn a *second* editor at creation time. The flow:
+    // _endDraw → endDrawing → createAndAddNewEditor (editor #1), then
+    // onceAdded → commit → setSelected → currentDrawingSession.commitOrRemove
+    // → endDrawingSession → endDrawing → createAndAddNewEditor (editor #2)
+    // because layer.#drawingAC was never reset by _endDraw. The fix routes
+    // single-stroke completion through parent.endDrawingSession() so the
+    // session is closed before the re-entry path runs.
+    it("R5: single distance creates exactly one storage entry", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 200,
+            rect.x + 350,
+            rect.y + 200
+          );
+          await waitForStorageEntries(page, 1);
+
+          // Hold for a moment to let any belated re-entry (the bug) land.
+          await waitForTimeout(page, 100);
+
+          const measures = await getMeasureSerialized(page);
+          expect(measures.length)
+            .withContext("exactly one MEASURE entry, no duplicate")
+            .toBe(1);
+        })
+      );
+    });
+
+    // R6 — Re-clicking the active subtype button switches to selection mode
+    // (no subtype active, isDrawer = false). In this mode existing measures
+    // capture pointer events for selection / deletion, and a click on the
+    // empty layer deselects but doesn't create a new editor.
+    it("R6: re-click of active subtype enters selection mode", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+          expect(await isSubTypeToggled(page, "distance")).toBe(true);
+
+          // Re-click the same button → selection mode (no subtype toggled).
+          await clickSubTypeButton(page, "distance");
+          expect(await isSubTypeToggled(page, "distance")).toBe(false);
+
+          // The viewer carries the .measureSelecting class in selection mode.
+          const selecting = await page.evaluate(() =>
+            document
+              .getElementById("viewer")
+              ?.classList.contains("measureSelecting")
+          );
+          expect(selecting)
+            .withContext("viewer must expose .measureSelecting in selection mode")
+            .toBe(true);
         })
       );
     });
