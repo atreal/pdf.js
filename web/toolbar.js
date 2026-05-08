@@ -403,12 +403,21 @@ class Toolbar {
       internalOpt
     );
 
-    // Track which measure subtype is currently active so editorModeChanged
-    // can highlight the matching toolbar button.
+    // Track which measure subtype is currently active so the toolbar
+    // can highlight the matching button. This event is dispatched both
+    // from inside our `#bindMeasureToolButtons` (user clicks a subtype)
+    // and from the UIManager when the active editor changes (e.g. the
+    // user double-clicks an existing perpendicular measure to re-edit
+    // it — we want the Perpendicular button to switch to the toggled
+    // state to mirror the editor's mode).
     eventBus._on("annotationeditorparamschanged", evt => {
       for (const [type, value] of evt.details) {
         if (type === Toolbar.#MEASURE_SUBTYPE_PARAMS) {
           this.#activeMeasureSubType = value;
+          // Refresh the toolbar buttons + the params panel host so the
+          // active subtype's button shows the toggled state and the
+          // door-hanger cartridge anchors under it.
+          this.#updateMeasureButtonsVisual(value);
         }
       }
     });

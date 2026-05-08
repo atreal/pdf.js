@@ -1396,6 +1396,113 @@ describe("MeasureEditor", () => {
       );
     });
 
+    // 0.1.0 #11a — Selecting an existing measure (e.g. via double-click
+    // to re-edit) must broadcast the editor's MEASURE_SUBTYPE so the
+    // toolbar highlights the matching button. Pre-fix: only the
+    // stroke / width / opacity entries were dispatched and the user
+    // saw an editor in edit mode but no subtype button toggled.
+    it("selecting an existing measure highlights its subtype button", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "perpendicular");
+
+          // Draw a perpendicular: base + 3rd point (auto-closes).
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 50,
+            rect.y + 200,
+            rect.x + 250,
+            rect.y + 200
+          );
+          await clickVertex(page, rect.x + 150, rect.y + 300);
+          await waitForSerialized(page, 1);
+
+          // Switch to a different subtype so Perpendicular is no longer
+          // the toggled button. Distance is the safe default.
+          await selectSubType(page, "distance");
+          expect(await isSubTypeToggled(page, "distance")).toBe(true);
+          expect(await isSubTypeToggled(page, "perpendicular")).toBe(false);
+
+          // Trigger a re-selection of the perpendicular measure via the
+          // editor itself (programmatic to avoid pointer-event quirks).
+          await page.evaluate(() => {
+            const ui =
+              window.PDFViewerApplication.pdfViewer._layerProperties
+                .annotationEditorUIManager;
+            const editor = [...ui.getEditors(0)][0];
+            ui.setSelected(editor);
+          });
+
+          // After the propertiesToUpdate fix, MEASURE_SUBTYPE is emitted
+          // and the toolbar's `annotationeditorparamschanged` listener
+          // calls #updateMeasureButtonsVisual.
+          await page.waitForFunction(
+            () =>
+              document
+                .getElementById("editorMeasurePerpendicularButton")
+                ?.classList.contains("toggled") &&
+              !document
+                .getElementById("editorMeasureDistanceButton")
+                ?.classList.contains("toggled")
+          );
+        })
+      );
+    });
+
+    // 0.1.0 #11b — Selecting an existing measure must push its
+    // color / line width / opacity back into the params toolbar inputs
+    // so the user sees the editor's actual values, not the last default
+    // they set on an empty selection.
+    it("selecting an existing measure feeds its props back to the toolbar inputs", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          // Draw a measure with the default red color (#FF0000).
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 250,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          // Unselect, then bump the toolbar default away from red. The
+          // editor's color is unchanged because nothing was selected.
+          await page.evaluate(() => {
+            const ui =
+              window.PDFViewerApplication.pdfViewer._layerProperties
+                .annotationEditorUIManager;
+            ui.unselectAll();
+            const input = document.getElementById("editorMeasureColor");
+            input.value = "#0033aa";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          });
+
+          // Re-select the editor — its propertiesToUpdate must dispatch
+          // the original red back to the input.
+          await page.evaluate(() => {
+            const ui =
+              window.PDFViewerApplication.pdfViewer._layerProperties
+                .annotationEditorUIManager;
+            const editor = [...ui.getEditors(0)][0];
+            ui.setSelected(editor);
+          });
+
+          await page.waitForFunction(
+            () =>
+              document.getElementById("editorMeasureColor")?.value ===
+              "#ff0000"
+          );
+        })
+      );
+    });
+
     // 0.1.0 #11 — `enableMeasureEditor` is wired into AppOptions and the
     // beforeEach has just opted in via the URL-hash plumbing, so the
     // option must read back as `true` here.
