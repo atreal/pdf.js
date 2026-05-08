@@ -137,9 +137,9 @@ describe("MeasureEditor", () => {
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 400,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForSerialized(page, 1);
@@ -164,10 +164,10 @@ describe("MeasureEditor", () => {
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 100,
-            rect.y + 300,
-            rect.x + 500,
-            rect.y + 300
+            rect.x + 50,
+            rect.y + 200,
+            rect.x + 280,
+            rect.y + 200
           );
           await waitForSerialized(page, 1);
 
@@ -188,10 +188,10 @@ describe("MeasureEditor", () => {
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 400,
-            rect.y + 250
+            rect.x + 250,
+            rect.y + 230
           );
           await waitForStorageEntries(page, 1);
 
@@ -216,9 +216,9 @@ describe("MeasureEditor", () => {
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
@@ -253,26 +253,29 @@ describe("MeasureEditor", () => {
           await selectSubType(page, "polyline");
 
           const rect = await getRect(page, ".annotationEditorLayer");
-          // Initial drag = first segment (vertex 1 → vertex 2).
+          // All y-offsets are ≥ 200 to stay clear of the measure params
+          // toolbar panel that is positioned over the top ~180px of the layer.
+          // Initial drag = vertex 1 → vertex 2.
           await dragSegment(
             page,
-            rect.x + 100,
-            rect.y + 100,
+            rect.x + 50,
+            rect.y + 200,
             rect.x + 200,
-            rect.y + 100
+            rect.y + 200
           );
-          // Subsequent click = vertex 3.
-          await clickVertex(page, rect.x + 300, rect.y + 200);
+          // Vertex 3.
+          await clickVertex(page, rect.x + 300, rect.y + 350);
           // Vertex 4.
-          await clickVertex(page, rect.x + 400, rect.y + 100);
-          // Double-click commits the polyline.
-          await page.mouse.click(rect.x + 400, rect.y + 100, { count: 2 });
+          await clickVertex(page, rect.x + 100, rect.y + 450);
+          // Double-click commits the polyline. Position is well away from the
+          // drawn path segments so event.target is the layer div.
+          await page.mouse.click(rect.x + 450, rect.y + 550, { count: 2 });
           await waitForSerialized(page, 1);
 
           const [m] = await getMeasureSerialized(page);
           expect(m.measureSubType).toBe("polyline");
-          // ≥ 3 vertices × 2 coords (the dblclick may or may not append the
-          // final point depending on layer wiring — assert lower bound).
+          // ≥ 4 vertices × 2 coords = 8 (the dblclick may also append the
+          // final point depending on layer wiring).
           expect(m.vertices.length).toBeGreaterThanOrEqual(6);
         })
       );
@@ -303,13 +306,13 @@ describe("MeasureEditor", () => {
           // Triangle.
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 400,
+            rect.x + 250,
             rect.y + 200
           );
-          await clickVertex(page, rect.x + 300, rect.y + 350);
-          await page.mouse.click(rect.x + 300, rect.y + 350, { count: 2 });
+          await clickVertex(page, rect.x + 150, rect.y + 330);
+          await page.mouse.click(rect.x + 150, rect.y + 330, { count: 2 });
           await waitForSerialized(page, 1);
 
           const [m] = await getMeasureSerialized(page);
@@ -345,13 +348,13 @@ describe("MeasureEditor", () => {
           // Base segment.
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 400,
+            rect.x + 250,
             rect.y + 200
           );
           // Third point — perpendicular auto-closes via isDone() after this.
-          await clickVertex(page, rect.x + 300, rect.y + 300);
+          await clickVertex(page, rect.x + 150, rect.y + 300);
           await waitForSerialized(page, 1);
 
           const [m] = await getMeasureSerialized(page);
@@ -378,32 +381,37 @@ describe("MeasureEditor", () => {
     it("updates the document scale factor when calibrating", async () => {
       await Promise.all(
         pages.map(async ([browserName, page]) => {
-          // Stub window.prompt before any user interaction so the calibrate
-          // flow can proceed without UI.
-          await page.evaluate(() => {
-            window.prompt = () => "10";
-          });
-
           await switchToMeasure(page);
           await selectSubType(page, "calibrate");
 
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 100,
-            rect.y + 100,
-            rect.x + 300,
-            rect.y + 100
+            rect.x + 50,
+            rect.y + 200,
+            rect.x + 230,
+            rect.y + 200
           );
-          await waitForTimeout(page, 300);
 
-          const sf = await page.evaluate(() => {
-            const ui =
-              window.PDFViewerApplication.pdfViewer
-                ._annotationEditorUIManager;
-            return ui?._measureScaleFactor || 0;
+          // The calibrate flow opens a <dialog> (not window.prompt) — interact
+          // with it so #runCalibrate gets a valid distance and updates scaleFactor.
+          await page.waitForSelector("#pdfjsMeasureCalibrateDialog[open]");
+          await page.evaluate(() => {
+            const input = document.querySelector(
+              "#pdfjsMeasureCalibrateDialog input"
+            );
+            input.value = "10";
+            document
+              .querySelector(
+                '#pdfjsMeasureCalibrateDialog button[data-action="ok"]'
+              )
+              .click();
           });
-          expect(sf)
+
+          await waitForSerialized(page, 1);
+
+          const [m] = await getMeasureSerialized(page);
+          expect(m?.scaleFactor)
             .withContext(`${browserName}: scaleFactor must be set`)
             .toBeGreaterThan(0);
         })
@@ -413,10 +421,6 @@ describe("MeasureEditor", () => {
     it("emits a measure annotation with measureSubType=calibrate", async () => {
       await Promise.all(
         pages.map(async ([_, page]) => {
-          await page.evaluate(() => {
-            window.prompt = () => "5";
-          });
-
           await switchToMeasure(page);
           await selectSubType(page, "calibrate");
 
@@ -428,6 +432,21 @@ describe("MeasureEditor", () => {
             rect.x + 250,
             rect.y + 200
           );
+
+          // Interact with the <dialog> to confirm a valid distance.
+          await page.waitForSelector("#pdfjsMeasureCalibrateDialog[open]");
+          await page.evaluate(() => {
+            const input = document.querySelector(
+              "#pdfjsMeasureCalibrateDialog input"
+            );
+            input.value = "5";
+            document
+              .querySelector(
+                '#pdfjsMeasureCalibrateDialog button[data-action="ok"]'
+              )
+              .click();
+          });
+
           await waitForSerialized(page, 1);
 
           const [m] = await getMeasureSerialized(page);
@@ -480,7 +499,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
@@ -522,7 +541,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
@@ -530,24 +549,24 @@ describe("MeasureEditor", () => {
           // Switch out of MEASURE to expose the synthetic view in NONE mode.
           await switchToMeasure(page, /* disable = */ true);
 
-          // Double-click on the synthetic SVG (within the polyline annotation
-          // container — which is added under .annotationLayer by
-          // createSyntheticElement).
-          const syntheticBox = await page.evaluate(() => {
+          // The synthetic <svg> sits under .annotationLayer .polylineAnnotation;
+          // its `dblclick` handler (set in MeasureEditor.#showViewElement) maps
+          // to switchannotationeditormode → updateMode → enterInEditMode.
+          await page.waitForSelector(
+            ".annotationLayer .polylineAnnotation svg"
+          );
+          // Dispatch a real DOM dblclick event on the SVG. We use this rather
+          // than two `page.mouse.click()` calls because the cross-browser
+          // semantics of "two clicks at count=2" don't reliably produce a
+          // native `dblclick` in headless Firefox.
+          await page.evaluate(() => {
             const svg = document.querySelector(
               ".annotationLayer .polylineAnnotation svg"
             );
-            if (!svg) {
-              return null;
-            }
-            const r = svg.getBoundingClientRect();
-            return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+            svg.dispatchEvent(
+              new MouseEvent("dblclick", { bubbles: true, cancelable: true })
+            );
           });
-          expect(syntheticBox)
-            .withContext("synthetic polyline must exist after commit")
-            .not.toBeNull();
-
-          await page.mouse.click(syntheticBox.x, syntheticBox.y, { count: 2 });
           // After dblclick the UIManager dispatches switchannotationeditormode
           // and the editor enters edit mode.
           await page.waitForSelector(".measureEditor.selectedEditor");
@@ -579,10 +598,10 @@ describe("MeasureEditor", () => {
           const rect = await getRect(page, ".annotationEditorLayer");
           await dragSegment(
             page,
-            rect.x + 200,
+            rect.x + 50,
             rect.y + 200,
-            rect.x + 400,
-            rect.y + 250
+            rect.x + 250,
+            rect.y + 230
           );
           await waitForSerialized(page, 1);
 
@@ -608,7 +627,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForSerialized(page, 1);
@@ -670,7 +689,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
@@ -717,7 +736,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
@@ -739,7 +758,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 300,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 300
           );
           await waitForStorageEntries(page, 2);
@@ -778,13 +797,13 @@ describe("MeasureEditor", () => {
           // remains open.
           await dragSegment(
             page,
-            rect.x + 100,
-            rect.y + 100,
+            rect.x + 50,
+            rect.y + 200,
             rect.x + 200,
-            rect.y + 100
+            rect.y + 200
           );
-          await clickVertex(page, rect.x + 300, rect.y + 200);
-          await clickVertex(page, rect.x + 400, rect.y + 100);
+          await clickVertex(page, rect.x + 300, rect.y + 350);
+          await clickVertex(page, rect.x + 100, rect.y + 450);
 
           // No MeasureEditor exists yet — storage is empty.
           const sizeBefore = await page.evaluate(
@@ -832,7 +851,7 @@ describe("MeasureEditor", () => {
             page,
             rect.x + 200,
             rect.y + 200,
-            rect.x + 350,
+            rect.x + 250,
             rect.y + 200
           );
           await waitForStorageEntries(page, 1);
