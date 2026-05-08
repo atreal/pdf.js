@@ -224,13 +224,16 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background: rgb(255 255 255 / 85%);
+  /* Match the worker-baked appearance (Helvetica 9pt, white opaque
+   * background, 1pt × 2pt padding). 9pt = 12px CSS at 96/72 dpi. We keep
+   * a sans-serif fallback list with Helvetica/Arial first because Adobe
+   * Helvetica has near-identical metrics to Arial. */
+  background: #fff;
   color: #000;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font:
-    11px / 1.2 system-ui,
-    sans-serif;
+  padding: 1px 2.66px;
+  border-radius: 0;
+  border: 0;
+  font: 12px / 1.2 Helvetica, Arial, sans-serif;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;

@@ -4856,6 +4856,7 @@ class PolylineAnnotation extends MarkupAnnotation {
       rect,
       label,
       labelOffset,
+      labelTextW, // optional, in PDF points; computed from real Helvetica metrics
     } = annotation;
     if (!color || !Array.isArray(vertices) || vertices.length < 4 || !rect) {
       return null;
@@ -4921,12 +4922,23 @@ class PolylineAnnotation extends MarkupAnnotation {
     const hasLabel = typeof label === "string" && label.length > 0;
     if (hasLabel) {
       const labelStr = PolylineAnnotation._asciifyLabel(label);
+      // Mirror the on-screen `.measureLabel` CSS box (`Helvetica 12px`,
+      // `padding: 1px 2.66px`, `line-height: 1.2`) so the printed/saved
+      // label lands at the same screen position the user sees.
+      // 12px CSS at 96/72 dpi = 9pt PDF. 1px = 0.75pt, 2.66px ≈ 2pt.
+      const isCalibrateLbl = measureSubType === "calibrate";
       const fontSize = 9;
-      const charW = fontSize * 0.5; // rough Helvetica em width
-      const textW = labelStr.length * charW;
+      // Prefer the editor-supplied browser measurement (real Helvetica
+      // metrics) when present — it matches what the user sees on screen.
+      // Fall back to a generic estimate for legacy callers.
+      const charW = fontSize * (isCalibrateLbl ? 0.55 : 0.5);
+      const textW =
+        typeof labelTextW === "number" && labelTextW > 0
+          ? labelTextW
+          : labelStr.length * charW;
       const textH = fontSize * 1.2;
       const padX = 2;
-      const padY = 1;
+      const padY = 0.75;
 
       const { cx, cy } = PolylineAnnotation._labelCenter(
         measureSubType,
@@ -4950,16 +4962,41 @@ class PolylineAnnotation extends MarkupAnnotation {
       const bgW = textW + 2 * padX;
       const bgH = textH + 2 * padY;
       const tx = lx - textW / 2;
-      const ty = ly - fontSize / 2 + 1; // Td places baseline; nudge for centering
+      // CSS centers the line-box on (lx, ly); for Helvetica that puts the
+      // baseline ~0.36 × fontSize below the center (cap-height/2 above the
+      // baseline). Place the baseline accordingly so the glyphs are
+      // vertically centered the same way the DOM renders them.
+      const ty = ly - 0.36 * fontSize;
 
+      // Calibrate measures get a distinct visual treatment on screen
+      // (orange background, white bold text, dark amber border) so the user
+      // can spot the document's scale annotation at a glance. Mirror that
+      // styling here so the printed/saved label looks the same.
+      const isCalibrate = isCalibrateLbl;
+      const bgRgb = isCalibrate
+        ? "0.961 0.620 0.043" // #f59e0b
+        : "1 1 1"; // white
+      const textRgb = isCalibrate
+        ? "1 1 1" // white
+        : "0 0 0"; // black
+      const fontResource = isCalibrate ? "/F2" : "/F1"; // F2 = Helvetica-Bold
       buf.push("q");
-      buf.push("1 1 1 rg"); // white fill for the text background
+      buf.push(`${bgRgb} rg`);
       buf.push(
         `${numberToString(bgX)} ${numberToString(bgY)} ${numberToString(bgW)} ${numberToString(bgH)} re f`
       );
-      buf.push("0 0 0 rg"); // black fill for the text glyphs
+      if (isCalibrate) {
+        // 1px CSS border ≈ 0.75pt. Keep the path inside the bg rect so the
+        // label width still matches the on-screen measurement.
+        buf.push(`0.706 0.325 0.035 RG`); // #b45309
+        buf.push(`0.75 w`);
+        buf.push(
+          `${numberToString(bgX)} ${numberToString(bgY)} ${numberToString(bgW)} ${numberToString(bgH)} re S`
+        );
+      }
+      buf.push(`${textRgb} rg`);
       buf.push("BT");
-      buf.push(`/F1 ${fontSize} Tf`);
+      buf.push(`${fontResource} ${fontSize} Tf`);
       buf.push(`${numberToString(tx)} ${numberToString(ty)} Td`);
       buf.push(`(${PolylineAnnotation._escapePdfString(labelStr)}) Tj`);
       buf.push("ET");
@@ -5000,6 +5037,16 @@ class PolylineAnnotation extends MarkupAnnotation {
       helvetica.set("BaseFont", Name.get("Helvetica"));
       helvetica.set("Encoding", Name.get("WinAnsiEncoding"));
       fontDict.set("F1", helvetica);
+      // F2 (Helvetica-Bold) is referenced by the calibrate-label code
+      // path. Always provide it when there's a label so reusing the form
+      // XObject for any subtype stays cheap (the Standard 14 fonts don't
+      // bloat the file).
+      const helveticaBold = new Dict(xref);
+      helveticaBold.set("Type", Name.get("Font"));
+      helveticaBold.set("Subtype", Name.get("Type1"));
+      helveticaBold.set("BaseFont", Name.get("Helvetica-Bold"));
+      helveticaBold.set("Encoding", Name.get("WinAnsiEncoding"));
+      fontDict.set("F2", helveticaBold);
       resources.set("Font", fontDict);
     }
     if (hasGs || hasLabel) {

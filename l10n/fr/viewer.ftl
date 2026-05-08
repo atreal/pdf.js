@@ -540,6 +540,12 @@ pdfjs-editor-undo-bar-message-ink = Dessin supprimé
 pdfjs-editor-undo-bar-message-stamp = Image supprimée
 pdfjs-editor-undo-bar-message-signature = Signature retirée
 pdfjs-editor-undo-bar-message-comment = Commentaire supprimé
+pdfjs-editor-undo-bar-message-measure = Mesure supprimée
+pdfjs-editor-undo-bar-message-measure-distance = Mesure de distance supprimée
+pdfjs-editor-undo-bar-message-measure-polyline = Mesure polyligne supprimée
+pdfjs-editor-undo-bar-message-measure-area = Mesure de surface supprimée
+pdfjs-editor-undo-bar-message-measure-perpendicular = Mesure perpendiculaire supprimée
+pdfjs-editor-undo-bar-message-measure-calibrate = Étalonnage supprimé
 # Variables:
 #   $count (Number) - the number of removed annotations.
 pdfjs-editor-undo-bar-message-multiple =

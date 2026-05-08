@@ -42,6 +42,13 @@ class EditorUndoBar {
     ink: "pdfjs-editor-undo-bar-message-ink",
     signature: "pdfjs-editor-undo-bar-message-signature",
     comment: "pdfjs-editor-undo-bar-message-comment",
+    measure: "pdfjs-editor-undo-bar-message-measure",
+    "measure-distance": "pdfjs-editor-undo-bar-message-measure-distance",
+    "measure-polyline": "pdfjs-editor-undo-bar-message-measure-polyline",
+    "measure-area": "pdfjs-editor-undo-bar-message-measure-area",
+    "measure-perpendicular":
+      "pdfjs-editor-undo-bar-message-measure-perpendicular",
+    "measure-calibrate": "pdfjs-editor-undo-bar-message-measure-calibrate",
     _multiple: "pdfjs-editor-undo-bar-message-multiple",
   });
 
