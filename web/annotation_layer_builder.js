@@ -147,18 +147,11 @@ class AnnotationLayerBuilder {
       return;
     }
 
-    // Create an annotation layer div and render the annotations
-    // if there is at least one annotation.
+    // Create an annotation layer div and render the annotations.
     const div = (this.div = document.createElement("div"));
     div.className = "annotationLayer";
     this.#onAppend?.(div);
     this.#initAnnotationLayer(viewport, structTreeLayer);
-
-    if (annotations.length === 0) {
-      this.#annotations = annotations;
-      setLayerDimensions(this.div, viewport);
-      return;
-    }
 
     await this.annotationLayer.render({
       annotations,
