@@ -205,9 +205,12 @@ const PDFViewerApplication = {
     } catch (ex) {
       console.error("initialize:", ex);
     }
-    if (AppOptions.get("pdfBugEnabled")) {
-      await this._parseHashParams();
-    }
+    // Parse the URL hash so simple `enable*=true` flags can be activated by
+    // appending them to the viewer URL. The pdf-bug / text-layer / locale
+    // branches inside _parseHashParams remain individually guarded by their
+    // own `params.has(...)` checks, so they only fire when explicitly
+    // requested.
+    await this._parseHashParams();
 
     let mode;
     switch (AppOptions.get("viewerCssTheme")) {
@@ -360,6 +363,15 @@ const PDFViewerApplication = {
       disableHistory: x => x === "true",
       disableRange: x => x === "true",
       disableStream: x => x === "true",
+      enableAltText: x => x === "true",
+      enableAutoLinking: x => x === "true",
+      enableComment: x => x === "true",
+      enableHighlightFloatingButton: x => x === "true",
+      enableMeasureEditor: x => x === "true",
+      enableMerge: x => x === "true",
+      enableSignatureEditor: x => x === "true",
+      enableSplitMerge: x => x === "true",
+      enableUpdatedAddImage: x => x === "true",
       verbosity: x => x | 0,
     };
 
@@ -641,6 +653,21 @@ const PDFViewerApplication = {
         const editorCommentButton = appConfig.toolbar?.editorCommentButton;
         if (editorCommentButton && AppOptions.get("enableComment")) {
           editorCommentButton.parentElement.hidden = false;
+        }
+        if (AppOptions.get("enableMeasureEditor")) {
+          for (const id of [
+            "editorMeasureSeparator",
+            "editorMeasureDistance",
+            "editorMeasurePolyline",
+            "editorMeasureArea",
+            "editorMeasurePerpendicular",
+            "editorMeasureCalibrate",
+          ]) {
+            const el = document.getElementById(id);
+            if (el) {
+              el.hidden = false;
+            }
+          }
         }
         this.annotationEditorParams = new AnnotationEditorParams(
           appConfig.annotationEditorParams,
