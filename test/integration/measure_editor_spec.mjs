@@ -121,7 +121,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -239,7 +245,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -289,7 +301,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -331,7 +349,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -371,7 +395,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -466,7 +496,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -523,7 +559,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -592,7 +634,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -659,7 +707,13 @@ describe("MeasureEditor", () => {
     let pages;
 
     beforeEach(async () => {
-      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
     });
 
     afterEach(async () => {
@@ -901,6 +955,528 @@ describe("MeasureEditor", () => {
           expect(selecting)
             .withContext("viewer must expose .measureSelecting in selection mode")
             .toBe(true);
+        })
+      );
+    });
+  });
+
+  // --------------------------------------------------------------------- //
+  // 0.1.0 coverage — fixes shipped with the pdfjs-openads-0.1.0 tag.       //
+  // Each spec exercises one of the user-facing behaviors validated         //
+  // manually before tagging, so a future regression is caught.            //
+  // --------------------------------------------------------------------- //
+  describe("Coverage 0.1.0", () => {
+    let pages;
+
+    beforeEach(async () => {
+      pages = await loadAndWait(
+        "aboutstacks.pdf",
+        ".annotationEditorLayer",
+        null,
+        null,
+        { enableMeasureEditor: true }
+      );
+    });
+
+    afterEach(async () => {
+      await closePages(pages);
+    });
+
+    // 0.1.0 #1 — `editorType` returns a subtype-aware key. Required by
+    // EditorUndoBar.#l10nMessages so the deletion notification reads
+    // "Mesure de distance supprimée" rather than the bare "Annuler".
+    it("editorType returns measure-<subtype>", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 200,
+            rect.x + 320,
+            rect.y + 200
+          );
+          await waitForStorageEntries(page, 1);
+
+          const editorType = await page.evaluate(() => {
+            const ui =
+              window.PDFViewerApplication.pdfViewer._layerProperties
+                .annotationEditorUIManager;
+            const editor = [...ui.getEditors(0)][0];
+            return editor?.editorType;
+          });
+          expect(editorType).toBe("measure-distance");
+        })
+      );
+    });
+
+    // 0.1.0 #2 — Deleting a measure must show the subtype-aware
+    // l10n-id on the undo bar (set by EditorUndoBar.show via the
+    // editor's editorType getter).
+    it("delete shows the subtype-aware undo bar message", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 200,
+            rect.y + 200,
+            rect.x + 320,
+            rect.y + 200
+          );
+          await waitForStorageEntries(page, 1);
+
+          // Selected on creation; trigger the delete.
+          await page.keyboard.press("Delete");
+          await page.waitForFunction(() => {
+            const msg = document.querySelector(
+              "#editorUndoBar #editorUndoBarMessage"
+            );
+            return (
+              msg?.getAttribute("data-l10n-id") ===
+              "pdfjs-editor-undo-bar-message-measure-distance"
+            );
+          });
+        })
+      );
+    });
+
+    // 0.1.0 #3 — The shared params panel reparents under the container
+    // of the active subtype so the door-hanger CSS anchors below the
+    // right button.
+    it("params toolbar reparents under the active subtype", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+          let parentId = await page.evaluate(
+            () =>
+              document.getElementById("editorMeasureParamsToolbar")
+                ?.parentElement?.id
+          );
+          expect(parentId).toBe("editorMeasureDistance");
+
+          await selectSubType(page, "polyline");
+          parentId = await page.evaluate(
+            () =>
+              document.getElementById("editorMeasureParamsToolbar")
+                ?.parentElement?.id
+          );
+          expect(parentId).toBe("editorMeasurePolyline");
+
+          await selectSubType(page, "calibrate");
+          parentId = await page.evaluate(
+            () =>
+              document.getElementById("editorMeasureParamsToolbar")
+                ?.parentElement?.id
+          );
+          expect(parentId).toBe("editorMeasureCalibrate");
+        })
+      );
+    });
+
+    // 0.1.0 #4 — Changing the stroke color of an area measure must also
+    // refresh the (translucent) fill on the live SVG so the inside
+    // matches the outline. The worker already mirrored stroke→fill on
+    // save, so this is the screen-side fix.
+    it("live AREA fill follows the stroke color update", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "area");
+
+          // Triangle.
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 50,
+            rect.y + 250,
+            rect.x + 250,
+            rect.y + 250
+          );
+          await clickVertex(page, rect.x + 150, rect.y + 380);
+          await page.mouse.click(rect.x + 150, rect.y + 380, { count: 2 });
+          await waitForSerialized(page, 1);
+
+          // Drive the toolbar color picker — listens to `input`, not
+          // `change` (see web/annotation_editor_params.js). The MEASURE
+          // editor's _updateProperty override should mirror the new
+          // stroke value into `fill` on the SVG root for area subtypes.
+          const newColor = "#33aa55";
+          await page.evaluate(c => {
+            const input = document.getElementById("editorMeasureColor");
+            input.value = c;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          }, newColor);
+
+          // Wait for the next paint then read `fill` off the SVG drawLayer
+          // root. DrawLayer.setParent attaches the SVG inside the page's
+          // .canvasWrapper, NOT inside .measureEditor — and
+          // DrawLayer.updateProperties applies `properties.root` attrs
+          // (stroke, fill, …) directly to that root element.
+          await page.waitForFunction(
+            color => {
+              const svgs = document.querySelectorAll(".canvasWrapper svg");
+              for (const svg of svgs) {
+                if (svg.getAttribute("fill")?.toLowerCase() === color.toLowerCase()) {
+                  return true;
+                }
+              }
+              return false;
+            },
+            {},
+            newColor
+          );
+        })
+      );
+    });
+
+    // 0.1.0 #4b — Sanity check: the same flow for a non-area subtype
+    // must NOT propagate the stroke color into `fill` (only the live
+    // stroke updates).
+    it("non-area measures do not get a fill applied on color change", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 250,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          await page.evaluate(() => {
+            const input = document.getElementById("editorMeasureColor");
+            input.value = "#1133aa";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          });
+
+          // Brief tick — give the live update a chance to land.
+          await waitForTimeout(page, 50);
+
+          const fillSeen = await page.evaluate(() => {
+            const svgs = document.querySelectorAll(".canvasWrapper svg");
+            // Find the most-recently-added SVG (last in document order).
+            const svg = svgs[svgs.length - 1];
+            return svg?.getAttribute("fill") || "";
+          });
+          // Distance never receives a fill — it stays unset (or "none").
+          expect(["", "none"]).toContain(fillSeen);
+        })
+      );
+    });
+
+    // 0.1.0 #5 — A strictly horizontal stroke must keep a non-zero
+    // height in the serialized rect, otherwise the saved /Rect and
+    // appearance BBox collapse and the trace prints invisibly.
+    it("serialize pads the rect for an axis-aligned stroke", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 50,
+            rect.y + 250,
+            rect.x + 350,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          const [m] = await getMeasureSerialized(page);
+          const [, y0, , y1] = m.rect;
+          // We pad by `Math.max(2, thickness)` so even a 1pt line gets a
+          // 2pt-tall rect. Any positive height passes.
+          expect(y1 - y0).toBeGreaterThan(0);
+        })
+      );
+    });
+
+    // 0.1.0 #6 — Worker also bakes the label, so the rect must extend
+    // far enough to cover the label's bounding box.
+    it("serialize grows the rect to include the label bbox", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 200,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          const [m] = await getMeasureSerialized(page);
+          const [x0, , x1] = m.rect;
+          // Label "X.YZ m" + label padding is at least ~25pt wide. The
+          // raw stroke geometry between vertices is ~75pt at 100% zoom
+          // but the rect grows further when label width exceeds it.
+          // We use a conservative lower bound so the test stays stable
+          // across CI viewports.
+          expect(x1 - x0).toBeGreaterThan(40);
+        })
+      );
+    });
+
+    // 0.1.0 #7 — `labelTextW` must be present in the serialized payload
+    // so the worker positions the printed label exactly where the user
+    // sees it (browser-measured Helvetica width, in PDF points).
+    it("serialize ships labelTextW for the worker", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 200,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          const [m] = await getMeasureSerialized(page);
+          expect(typeof m.labelTextW).toBe("number");
+          expect(m.labelTextW).toBeGreaterThan(0);
+        })
+      );
+    });
+
+    // 0.1.0 #8 — On-screen `.measureLabel` is set up to mirror the
+    // worker's appearance: Helvetica/Arial 12px (= 9pt PDF), opaque
+    // white background.
+    it("measureLabel CSS matches the PDF rendering", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 200,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          const css = await page.evaluate(() => {
+            const lbl = document.querySelector(
+              ".annotationEditorLayer .measureEditor .measureLabel"
+            );
+            const c = getComputedStyle(lbl);
+            return {
+              fontSize: c.fontSize,
+              fontFamily: c.fontFamily,
+              background: c.backgroundColor,
+            };
+          });
+          expect(css.fontSize).toBe("12px");
+          expect(css.fontFamily.toLowerCase()).toContain("helvetica");
+          // Opaque white (rgb(255, 255, 255)) — no alpha channel.
+          expect(css.background.replace(/\s/g, "")).toBe("rgb(255,255,255)");
+        })
+      );
+    });
+
+    // 0.1.0 #9 — Calibrate gets the orange/bold/bordered styling on
+    // screen so the user can spot the document scale at a glance. The
+    // worker mirrors it in the saved appearance.
+    it("calibrate measureLabel uses the orange badge styling", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "calibrate");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 50,
+            rect.y + 250,
+            rect.x + 250,
+            rect.y + 250
+          );
+
+          await page.waitForSelector("#pdfjsMeasureCalibrateDialog[open]");
+          await page.evaluate(() => {
+            const input = document.querySelector(
+              "#pdfjsMeasureCalibrateDialog input"
+            );
+            input.value = "10";
+            document
+              .querySelector(
+                '#pdfjsMeasureCalibrateDialog button[data-action="ok"]'
+              )
+              .click();
+          });
+          await waitForSerialized(page, 1);
+
+          const css = await page.evaluate(() => {
+            const lbl = document.querySelector(
+              ".annotationEditorLayer .measureEditor.measureCalibrate .measureLabel"
+            );
+            if (!lbl) {
+              return null;
+            }
+            const c = getComputedStyle(lbl);
+            return {
+              background: c.backgroundColor,
+              color: c.color,
+              fontWeight: c.fontWeight,
+            };
+          });
+          expect(css)
+            .withContext(".measureCalibrate .measureLabel must exist")
+            .not.toBeNull();
+          // #f59e0b → rgb(245, 158, 11)
+          expect(css.background.replace(/\s/g, "")).toBe("rgb(245,158,11)");
+          expect(css.color.replace(/\s/g, "")).toBe("rgb(255,255,255)");
+          // 600 (bold) — accept any bold-ish weight.
+          expect(parseInt(css.fontWeight, 10)).toBeGreaterThanOrEqual(600);
+        })
+      );
+    });
+
+    // 0.1.0 #10 — Setting a comment on a measure must register with
+    // the comment manager so it survives a serialize → deserialize
+    // round-trip the way native annotation editors do.
+    it("setCommentData accepts the deserialize-shaped object", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          await switchToMeasure(page);
+          await selectSubType(page, "distance");
+
+          const rect = await getRect(page, ".annotationEditorLayer");
+          await dragSegment(
+            page,
+            rect.x + 100,
+            rect.y + 250,
+            rect.x + 220,
+            rect.y + 250
+          );
+          await waitForSerialized(page, 1);
+
+          // Replay the deserialize-time call with the canonical shape
+          // (`{ comment, popupRef, ... }`). Pre-fix this would silently
+          // bail (missing popupRef → early return) and `hasComment`
+          // would stay false.
+          const hasCommentAfter = await page.evaluate(() => {
+            const ui =
+              window.PDFViewerApplication.pdfViewer._layerProperties
+                .annotationEditorUIManager;
+            const editor = [...ui.getEditors(0)][0];
+            editor.setCommentData({
+              comment: "Hello from the test",
+              popupRef: "fake-ref-123",
+            });
+            return editor.hasComment;
+          });
+          expect(hasCommentAfter).toBe(true);
+        })
+      );
+    });
+
+    // 0.1.0 #11 — `enableMeasureEditor` is wired into AppOptions and the
+    // beforeEach has just opted in via the URL-hash plumbing, so the
+    // option must read back as `true` here.
+    it("enableMeasureEditor option is on for this suite", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          const enabled = await page.evaluate(
+            () =>
+              window.PDFViewerApplicationOptions?.get("enableMeasureEditor") ===
+              true
+          );
+          expect(enabled).toBe(true);
+          // The 5 subtype containers must also be visible (no `hidden`
+          // attribute) when the option is on.
+          const allVisible = await page.evaluate(() => {
+            const ids = [
+              "editorMeasureSeparator",
+              "editorMeasureDistance",
+              "editorMeasurePolyline",
+              "editorMeasureArea",
+              "editorMeasurePerpendicular",
+              "editorMeasureCalibrate",
+            ];
+            return ids.every(id => {
+              const el = document.getElementById(id);
+              return el && !el.hidden;
+            });
+          });
+          expect(allVisible).toBe(true);
+        })
+      );
+    });
+  });
+
+  // --------------------------------------------------------------------- //
+  // Hidden-by-default toolbar — no `enableMeasureEditor` opt-in.          //
+  // --------------------------------------------------------------------- //
+  describe("Coverage 0.1.0 — toolbar gating", () => {
+    let pages;
+
+    beforeEach(async () => {
+      // Deliberately skip the `{ enableMeasureEditor: true }` setup so the
+      // option falls back to its default value (false outside of a host
+      // that opted in).
+      pages = await loadAndWait("aboutstacks.pdf", ".annotationEditorLayer");
+    });
+
+    afterEach(async () => {
+      await closePages(pages);
+    });
+
+    // 0.1.0 #12 — Without the opt-in, the option must be off and every
+    // measure subtype container in the toolbar must stay hidden so the
+    // host UI doesn't expose the feature unintentionally.
+    it("measure toolbar is hidden when the option is off", async () => {
+      await Promise.all(
+        pages.map(async ([_, page]) => {
+          const enabled = await page.evaluate(
+            () => window.PDFViewerApplicationOptions?.get("enableMeasureEditor")
+          );
+          expect(enabled).toBe(false);
+
+          const visible = await page.evaluate(() => {
+            const ids = [
+              "editorMeasureSeparator",
+              "editorMeasureDistance",
+              "editorMeasurePolyline",
+              "editorMeasureArea",
+              "editorMeasurePerpendicular",
+              "editorMeasureCalibrate",
+            ];
+            return ids.map(id => ({
+              id,
+              hidden: document.getElementById(id)?.hidden,
+            }));
+          });
+          for (const { id, hidden } of visible) {
+            expect(hidden)
+              .withContext(`#${id} must be hidden when option is off`)
+              .toBe(true);
+          }
         })
       );
     });

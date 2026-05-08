@@ -1963,6 +1963,16 @@ class MeasureEditor extends DrawingEditor {
     if (event.target.nodeName === "BUTTON") {
       return;
     }
+    // Already in MEASURE mode → dispatching switchannotationeditormode
+    // would be a no-op (the viewer's setter early-returns when the mode
+    // doesn't change), so call enterInEditMode directly. Only the cross-
+    // mode case (e.g. dblclick from NONE view mode) needs the dispatch
+    // so the viewer routes through updateMode → setSelected →
+    // enterInEditMode.
+    if (this._uiManager?.getMode() === AnnotationEditorType.MEASURE) {
+      this.enterInEditMode();
+      return;
+    }
     this._uiManager?._eventBus?.dispatch?.("switchannotationeditormode", {
       source: this,
       mode: AnnotationEditorType.MEASURE,

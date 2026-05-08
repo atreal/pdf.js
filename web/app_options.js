@@ -233,6 +233,11 @@ const defaultOptions = {
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE,
   },
   enableMeasureEditor: {
+    // Off by default everywhere (including TESTING). Each integration
+    // spec opts in via the URL-hash mechanism (see the
+    // `{ enableMeasureEditor: true }` setup of `loadAndWait`), so the
+    // suite still exercises the toolbar without relying on a forced
+    // default that would mask the gating logic.
     /** @type {boolean} */
     value: false,
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE,
