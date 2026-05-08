@@ -779,6 +779,10 @@ class MeasureEditor extends DrawingEditor {
 
   static _defaultUnit = "m";
 
+  // Off-DOM canvas reused across serialize() calls to measure the PDF
+  // label width via real Helvetica/Arial metrics. Lazy-initialized.
+  static #textMeasureCanvas = null;
+
   #measureSubType;
 
   #scaleFactor;
@@ -794,6 +798,30 @@ class MeasureEditor extends DrawingEditor {
     this.#scaleFactor =
       params.scaleFactor ?? MeasureEditor._defaultScaleFactor;
     this.#unit = params.unit || MeasureEditor._defaultUnit;
+  }
+
+  /**
+   * Override the inherited `editorType` so the EditorUndoBar can pick a
+   * subtype-specific message ("Mesure distance supprimée" vs the generic
+   * "Mesure supprimée"). DrawingEditor's constructor calls `_addOutlines`
+   * → `#createDrawOutlines` → reads `this.editorType` BEFORE our own
+   * `super()` returns and our field initializers run. Reading the private
+   * `#measureSubType` field on a partially-constructed instance throws a
+   * TypeError, which would abort the whole DrawingEditor pipeline (the
+   * symptom: "drawing no longer renders / commits"). Guard with try/catch
+   * so the early call gets the parent's plain `"measure"` and the
+   * subtype-aware label only kicks in after the constructor body has run.
+   */
+  get editorType() {
+    try {
+      const sub = this.#measureSubType;
+      if (sub) {
+        return `measure-${sub}`;
+      }
+    } catch {
+      // Field not initialized yet (we're still inside super()); fall through.
+    }
+    return super.editorType;
   }
 
   /** @inheritdoc */
@@ -1087,7 +1115,12 @@ class MeasureEditor extends DrawingEditor {
       editor._setLabelOffsetPx({ x: dxPt * scale, y: -dyPt * scale });
     }
     if (data.comment) {
-      editor.setCommentData(data.comment);
+      // setCommentData destructures `{ comment, popupRef, richText }` and
+      // bails when `popupRef` is missing — pass the full data object so
+      // it picks up `popupRef` (set above from elementData), otherwise
+      // the comment loads as text but isn't registered with the comment
+      // manager and disappears from the comments sidebar on reload.
+      editor.setCommentData(data);
     }
     // When loading a calibrate annotation, restore the document-wide scale so
     // freshly-traced measurements reuse it.
@@ -1119,6 +1152,31 @@ class MeasureEditor extends DrawingEditor {
 
   get colorValue() {
     return this._drawingOptions.stroke;
+  }
+
+  /**
+   * Area measures use the stroke color as a translucent fill (see
+   * `getDefaultDrawingOptions`). When the user changes the color of an
+   * existing area, the parent only repaints `stroke` so the inside
+   * coloring stays on the previous hue. Re-apply the matching `fill` (with
+   * the same softer alpha used at creation time) so the live SVG matches
+   * the updated color — the worker already mirrors stroke→fill on save,
+   * which is why print/save were already correct.
+   */
+  _updateProperty(type, name, value) {
+    super._updateProperty(type, name, value);
+    if (
+      this.#measureSubType === MeasureSubType.AREA &&
+      type === this.colorType
+    ) {
+      const opts = this._drawingOptions;
+      opts.updateProperty("fill", value);
+      opts.updateProperty("fill-opacity", 0.25);
+      this.parent?.drawLayer.updateProperties(
+        this._drawId,
+        opts.toSVGProperties()
+      );
+    }
   }
 
   /** @inheritdoc */
@@ -1503,6 +1561,110 @@ class MeasureEditor extends DrawingEditor {
     const stroke0 = points[0] || new Float32Array();
     const vertices = Array.from(stroke0);
     const colorRgb = AnnotationEditor._colorManager.convert(stroke);
+    const measureLabel = this.#computeMeasureLabel(vertices);
+    const labelOffset = this.#labelOffsetInPdfPoints();
+
+    // serializeDraw returns the geometric bbox without any margin. For a
+    // strictly horizontal or vertical stroke (typical for distance and
+    // calibrate) the bbox collapses to height=0 or width=0, which in turn
+    // makes the saved /Rect (and the appearance-stream BBox) degenerate —
+    // PDF readers then clip the path entirely while the label, drawn at
+    // the rect's edge, stays partially visible. Pad symmetrically so the
+    // rect always has at least the line thickness on both axes; vertices
+    // sit on the centerline so the path stays inside the padded rect.
+    const minPad = Math.max(2, thickness || 1);
+    if (rect[3] - rect[1] < minPad) {
+      const cy = (rect[1] + rect[3]) / 2;
+      rect[1] = cy - minPad / 2;
+      rect[3] = cy + minPad / 2;
+    }
+    if (rect[2] - rect[0] < minPad) {
+      const cx = (rect[0] + rect[2]) / 2;
+      rect[0] = cx - minPad / 2;
+      rect[2] = cx + minPad / 2;
+    }
+
+    // Worker bakes the label into the appearance stream (Helvetica 9pt). If
+    // the rect doesn't cover the label's bbox, the PDF BBox clips the text
+    // — the typical symptom on a horizontal calibrate is "only the few
+    // characters that overlap the line are printed". Mirror the worker's
+    // text metrics + label centering and grow the rect to include the
+    // label, plus a small breathing pad.
+    let measuredTextWPt = null;
+    if (typeof measureLabel === "string" && measureLabel.length > 0) {
+      const fontSize = 9;
+      // Use the browser's actual Helvetica/Arial metrics to compute the
+      // label width: the worker can then place the printed/saved label at
+      // exactly the same horizontal position the user sees on screen
+      // (otherwise a generic `length × 0.5em` estimate over-shoots and
+      // shifts everything left by half the error). We do this once per
+      // serialize and pass `textW` along to the worker.
+      const measureCanvas = (MeasureEditor.#textMeasureCanvas ||=
+        document.createElement("canvas"));
+      const ctx = measureCanvas.getContext("2d");
+      const isCalibrate =
+        this.#measureSubType === MeasureSubType.CALIBRATE;
+      // Canvas font sizes accept "pt" but the returned `width` is in CSS
+      // pixels. Use px (12 = 9pt) to make the unit explicit, then convert
+      // to PDF points (1pt = 4/3 px → multiply by 0.75).
+      ctx.font = `${isCalibrate ? "bold " : ""}12px Helvetica, Arial, sans-serif`;
+      // ASCII-fold the label exactly the way the worker does before
+      // baking it, so we measure the same string the PDF will render.
+      const asciiLabel = measureLabel
+        .normalize("NFKD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/²/g, "2")
+        .replace(/[—–]/g, "-")
+        .replace(/[^\x20-\x7e]/g, "?");
+      const widthCssPx = ctx.measureText(asciiLabel).width;
+      const textW = (measuredTextWPt = widthCssPx * 0.75);
+      const textH = fontSize * 1.2;
+      const labelPad = 4;
+      let cx = 0,
+        cy = 0;
+      if (vertices.length >= 2) {
+        let minX = Infinity,
+          maxX = -Infinity,
+          minY = Infinity,
+          maxY = -Infinity;
+        for (let i = 0, ii = vertices.length; i < ii; i += 2) {
+          const x = vertices[i];
+          const y = vertices[i + 1];
+          if (x < minX) {
+            minX = x;
+          }
+          if (x > maxX) {
+            maxX = x;
+          }
+          if (y < minY) {
+            minY = y;
+          }
+          if (y > maxY) {
+            maxY = y;
+          }
+        }
+        cx = (minX + maxX) / 2;
+        cy = (minY + maxY) / 2;
+      }
+      const lx = cx + (Array.isArray(labelOffset) ? labelOffset[0] : 0);
+      const ly = cy + (Array.isArray(labelOffset) ? labelOffset[1] : 0);
+      const lblX0 = lx - textW / 2 - labelPad;
+      const lblX1 = lx + textW / 2 + labelPad;
+      const lblY0 = ly - textH / 2 - labelPad;
+      const lblY1 = ly + textH / 2 + labelPad;
+      if (lblX0 < rect[0]) {
+        rect[0] = lblX0;
+      }
+      if (lblX1 > rect[2]) {
+        rect[2] = lblX1;
+      }
+      if (lblY0 < rect[1]) {
+        rect[1] = lblY0;
+      }
+      if (lblY1 > rect[3]) {
+        rect[3] = lblY1;
+      }
+    }
 
     const serialized = {
       annotationType: AnnotationEditorType.MEASURE,
@@ -1514,8 +1676,12 @@ class MeasureEditor extends DrawingEditor {
       lineWidth: thickness,
       unit: this.#unit,
       scaleFactor: this.#scaleFactor,
-      label: this.#computeMeasureLabel(vertices),
-      labelOffset: this.#labelOffsetInPdfPoints(),
+      label: measureLabel,
+      labelOffset,
+      // Browser-measured label width in PDF points (matches actual
+      // Helvetica/Arial rendering). Worker uses this when present
+      // instead of its `length × 0.5em` fallback.
+      labelTextW: measuredTextWPt,
       // Forward the popup ref so re-saves of an existing annotation reuse
       // the same /Popup object instead of leaking a fresh one each save —
       // every leaked ref ends up in the page's /Annots array and shows up as
