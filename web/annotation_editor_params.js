@@ -214,6 +214,22 @@ class AnnotationEditorParams {
           case AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL:
             editorHighlightShowAll.setAttribute("aria-pressed", value);
             break;
+          case AnnotationEditorParamsType.MEASURE_COLOR:
+            if (editorMeasureColor) {
+              editorMeasureColor.value = value;
+            }
+            break;
+          case AnnotationEditorParamsType.MEASURE_LINEWIDTH:
+            if (editorMeasureLineWidth) {
+              editorMeasureLineWidth.value = value;
+            }
+            break;
+          case AnnotationEditorParamsType.MEASURE_OPACITY:
+            if (editorMeasureOpacity) {
+              // Editor stores opacity in [0..1], the slider in [0..100].
+              editorMeasureOpacity.value = Math.round(value * 100);
+            }
+            break;
         }
       }
     });

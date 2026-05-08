@@ -928,6 +928,26 @@ class MeasureEditor extends DrawingEditor {
     return props;
   }
 
+  /**
+   * Per-instance property bag dispatched on selection so the params
+   * panel can reflect the editor's actual state. Inherits the
+   * stroke/width/opacity entries from DrawingEditor and adds the
+   * subtype so the toolbar's `MEASURE_SUBTYPE` listener can highlight
+   * the matching button (Distance / Polyligne / Area / Perpendicular /
+   * Calibrate) when the user double-clicks an existing measure.
+   * @inheritdoc
+   */
+  get propertiesToUpdate() {
+    const props = super.propertiesToUpdate;
+    if (this.#measureSubType) {
+      props.push([
+        AnnotationEditorParamsType.MEASURE_SUBTYPE,
+        this.#measureSubType,
+      ]);
+    }
+    return props;
+  }
+
   /** @inheritdoc */
   static createDrawerInstance(x, y, parentWidth, parentHeight, rotation) {
     const sub = this._defaultMeasureSubType;
