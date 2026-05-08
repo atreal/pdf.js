@@ -1264,6 +1264,16 @@ class MeasureEditor extends DrawingEditor {
     if (this.#measureSubType === MeasureSubType.CALIBRATE) {
       div.classList.add("measureCalibrate");
     }
+    // Saved measures (deserialized from a /Annots entry) have a native
+    // PolylineAnnotationElement rendered just below us in the AnnotationLayer.
+    // It owns the hover popup and the dblclick → re-edit handler. We mark
+    // the editor div so the CSS can drop pointer-events in NONE/view mode
+    // and let those events through. Fresh, in-memory measures keep their
+    // own pointer-events so AnnotationEditor's own `dblclick` listener can
+    // re-enter edit mode.
+    if (this.annotationElementId) {
+      div.classList.add("hasAnnotationLayerSibling");
+    }
     this.#bindLabelDrag(label);
     this.#applyLabelOffset();
     this._refreshLabel();
@@ -1774,11 +1784,32 @@ class MeasureEditor extends DrawingEditor {
     this.enableEditing();
   }
 
+  /**
+   * Double-clicking a fresh measure (no annotationElementId) in view mode
+   * must switch the viewer back to MEASURE editing AND re-enter edit mode
+   * for this specific editor. The base AnnotationEditor.dblclick fires
+   * updateToolbar without `mustEnterInEditMode`, so it would only select
+   * the measure without lifting the `.disabled` class. Reloaded measures
+   * (with an annotationElementId) get this routing from the native
+   * PolylineAnnotationElement, so they don't need this override.
+   */
+  dblclick(event) {
+    if (event.target.nodeName === "BUTTON") {
+      return;
+    }
+    this._uiManager?._eventBus?.dispatch?.("switchannotationeditormode", {
+      source: this,
+      mode: AnnotationEditorType.MEASURE,
+      editId: this.uid,
+      mustEnterInEditMode: true,
+    });
+  }
+
   /** @inheritdoc */
   pointerdown(event) {
-    // In NONE / view mode the editor div may be pointer-events:auto so the
-    // synthetic AnnotationElement can render under it without blocking
-    // hover. The click itself must stay a no-op — view mode is read-only.
+    // In NONE / view mode the editor div has pointer-events back on (so
+    // dblclick can re-enter edit mode), but a single click must stay a
+    // no-op — view mode is read-only.
     if (this._uiManager?.getMode() === AnnotationEditorType.NONE) {
       return;
     }

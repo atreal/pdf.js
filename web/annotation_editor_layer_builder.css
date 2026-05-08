@@ -150,13 +150,17 @@
    * measure to select it, then Delete/Backspace to remove it. */
 
   /* In NONE / view mode the editor layer is `.disabled` (pointer-events:none
-   * on the layer itself) but the editor div, having default pointer-events,
-   * still catches mouse events ahead of the synthetic AnnotationElement we
-   * inject in the layer below for the read-only popup hover. Make the
-   * editor div transparent to pointer events so hover reaches the
-   * underlying PolylineAnnotationElement. */
-  &.disabled .measureEditor {
+   * on the layer itself). For measures that already have a native
+   * PolylineAnnotationElement rendered in the AnnotationLayer below
+   * (i.e. saved measures, identifiable by `.hasAnnotationLayerSibling`),
+   * keep the editor div transparent so hover/dblclick reach that element.
+   * Fresh, in-memory measures need pointer-events back on so the base
+   * AnnotationEditor's `dblclick` listener can re-enter edit mode. */
+  &.disabled .measureEditor.hasAnnotationLayerSibling {
     pointer-events: none !important;
+  }
+  &.disabled .measureEditor:not(.hasAnnotationLayerSibling) {
+    pointer-events: auto;
   }
 
 
