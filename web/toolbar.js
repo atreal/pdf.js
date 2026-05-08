@@ -213,16 +213,46 @@ class Toolbar {
       [editorMeasurePerpendicularButton, "perpendicular"],
       [editorMeasureCalibrateButton, "calibrate"],
     ];
+
+    // Find the active button (if any) and move the shared params panel
+    // under its container so the doorHangerRight CSS positions the help
+    // cartouche right below it instead of always anchoring to Distance.
+    let activeBtn = null;
+    for (const [btn, sub] of map) {
+      if (btn && sub === activeSubtype) {
+        activeBtn = btn;
+        break;
+      }
+    }
+    if (editorMeasureParamsToolbar && activeBtn) {
+      const container = activeBtn.parentElement;
+      if (container && editorMeasureParamsToolbar.parentElement !== container) {
+        container.append(editorMeasureParamsToolbar);
+      }
+    }
+
     for (const [btn, sub] of map) {
       if (!btn) {
         continue;
       }
       const isActive = sub === activeSubtype;
-      if (btn === editorMeasureDistanceButton) {
-        toggleExpandedBtn(btn, isActive, editorMeasureParamsToolbar);
+      if (isActive) {
+        // The active button now owns the params toolbar: wire aria-controls
+        // here and use toggleExpandedBtn so aria-expanded + the hidden class
+        // stay in sync.
+        btn.setAttribute("aria-haspopup", "true");
+        btn.setAttribute("aria-controls", "editorMeasureParamsToolbar");
+        toggleExpandedBtn(btn, true, editorMeasureParamsToolbar);
+        btn.setAttribute("aria-pressed", "true");
       } else {
-        btn.classList.toggle("toggled", isActive);
-        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+        btn.classList.toggle("toggled", false);
+        btn.setAttribute("aria-pressed", "false");
+        // Drop the popup wiring from non-active buttons so screen readers
+        // don't announce a panel they no longer own.
+        if (btn.hasAttribute("aria-controls")) {
+          btn.removeAttribute("aria-controls");
+        }
+        btn.setAttribute("aria-expanded", "false");
       }
     }
     if (editorMeasureParamsToolbar) {
