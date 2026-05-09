@@ -1480,3 +1480,176 @@ dialog :link {
     display: none;
   }
 }
+
+/* ── Signatures banner (in-document, no toolbar overflow) ────────────── */
+
+.signaturesBanner[hidden] {
+  display: none;
+}
+
+.signaturesBanner {
+  flex: none;
+  width: auto;
+  background-color: light-dark(rgb(255 244 191), rgb(74 64 28));
+  color: light-dark(rgb(90 60 0), rgb(255 220 130));
+  border-bottom: 1px solid light-dark(rgb(220 200 130), rgb(120 100 40));
+  font-size: 13px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  /* Match #viewerContainer's left-shift when the views manager (left
+     sidebar with thumbnails) is open, so the banner doesn't slide under
+     it. The transition mirrors the sidebar's. */
+  margin-inline-start: 0;
+  transition-property: margin-inline-start;
+  transition-duration: var(--sidebar-transition-duration);
+  transition-timing-function: var(--sidebar-transition-timing-function);
+}
+
+#outerContainer.viewsManagerOpen .signaturesBanner {
+  /* +10px gap so the banner doesn't tuck under the sidebar's rounded
+     border / shadow. */
+  margin-inline-start: calc(var(--viewsManager-width, 0) + 10px);
+}
+
+.signaturesBannerToggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+
+  &:is(:hover, :focus-visible) {
+    background-color: light-dark(rgb(255 232 140), rgb(96 80 32));
+    outline: none;
+  }
+}
+
+.signaturesBannerIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  background-color: currentcolor;
+  mask-size: cover;
+  mask-position: center;
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'><path d='M8 1L2 3.5v4c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5v-4L8 1Z' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><path d='M5.5 8.2l1.8 1.8L11 6.4' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+
+.signaturesBannerSummary {
+  flex: 0 1 auto;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.signaturesBannerHint {
+  flex: 1 1 auto;
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.signaturesBannerChevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background-color: currentcolor;
+  mask-size: cover;
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4 l4 4 4-4' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  transition: transform 0.15s ease;
+}
+
+.signaturesBannerToggle[aria-expanded="true"] .signaturesBannerChevron {
+  transform: rotate(180deg);
+}
+
+.signaturesBannerDetails {
+  background-color: light-dark(rgb(255 251 232), rgb(45 38 18));
+  color: light-dark(rgb(60 50 0), rgb(245 235 200));
+  border-top: 1px solid light-dark(rgb(220 200 130), rgb(120 100 40));
+  max-height: 35vh;
+  overflow-y: auto;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+@media all and (max-width: 720px) {
+  .signaturesBannerHint {
+    display: none;
+  }
+}
+
+.signaturesPanelList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.signaturesPanelItem {
+  padding: 8px 14px;
+  border-bottom: 1px solid light-dark(rgb(230 220 180), rgb(95 80 35));
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.signaturesPanelItemTitle {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.signaturesPanelItemMeta {
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+  opacity: 0.85;
+}
+
+.signaturesPanelItemMetaKey {
+  opacity: 0.7;
+}
+
+.signaturesPanelItemOk {
+  color: light-dark(rgb(0 100 30), rgb(120 220 150));
+  font-weight: 600;
+  opacity: 1;
+}
+
+.signaturesPanelItemKo {
+  color: light-dark(rgb(160 0 30), rgb(255 130 140));
+  font-weight: 600;
+  opacity: 1;
+}
+
+.signaturesBanner.signaturesBannerWarn {
+  background-color: light-dark(rgb(255 220 220), rgb(80 30 30));
+  color: light-dark(rgb(120 0 20), rgb(255 200 200));
+  border-bottom-color: light-dark(rgb(220 150 150), rgb(140 60 60));
+}
+
+.signaturesBanner.signaturesBannerWarn .signaturesBannerToggle:is(:hover, :focus-visible) {
+  background-color: light-dark(rgb(255 200 200), rgb(100 40 40));
+}
+
+.signaturesPanelDisclaimer {
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 8px 14px;
+  background-color: light-dark(rgb(255 244 191), rgb(74 64 28));
+  color: light-dark(rgb(90 60 0), rgb(255 220 130));
+  border-top: 1px solid light-dark(rgb(220 200 130), rgb(120 100 40));
+}

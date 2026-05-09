@@ -34,6 +34,15 @@
  *   { type: "openads-pdf-save",          pdfBase64, documentId }
  *   { type: "openads-pdf-has-unsaved",   hasUnsaved }
  *   { type: "openads-show-toast",        message, type }
+ *   { type: "openads-pdf-signatures",    signatures, documentId }
+ *
+ * "openads-pdf-signatures" is dispatched once per document load when the
+ * PDF carries one or more electronic signature fields. The payload is pure
+ * metadata (signer / date / reason / location / SubFilter / ByteRange) —
+ * no cryptographic verification is performed by the viewer. The receiving
+ * side MUST NOT present these signatures as "valid" without performing
+ * its own integrity check (e.g. server-side openssl_pkcs7_verify on the
+ * range described by `byteRange`).
  */
 
 const isInIframe = window !== window.parent;
@@ -68,8 +77,35 @@ function initOpenadsBridge(app) {
   // Listen to messages from the parent window.
   window.addEventListener("message", _handleParentMessage);
 
+  // Publish electronic-signature metadata (if any) once the document is
+  // ready. Signatures are *informational* — no crypto verification is
+  // performed here.
+  app.eventBus?.on("documentloaded", _publishSignatures);
+
   // Try to load the PDF straight from a parent-provided variable (legacy).
   _loadPdfFromParent();
+}
+
+async function _publishSignatures() {
+  if (!_app?.pdfDocument) {
+    return;
+  }
+  try {
+    const signatures = await _app.pdfDocument.getSignatures();
+    if (!signatures?.length) {
+      return;
+    }
+    parent.postMessage(
+      {
+        type: "openads-pdf-signatures",
+        signatures,
+        documentId,
+      },
+      "*"
+    );
+  } catch {
+    // Silently ignore — signatures are informational, not blocking.
+  }
 }
 
 function _loadPdfFromParent() {
