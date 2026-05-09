@@ -1787,6 +1787,11 @@ describe("api", function () {
       expect(fieldObjects).toEqual(null);
     });
 
+    it("gets signatures (no signature fields)", async function () {
+      const signatures = await pdfDocument.getSignatures();
+      expect(signatures).toEqual(null);
+    });
+
     it("gets fieldObjects", async function () {
       const loadingTask = getDocument(buildGetDocumentParams("js-authors.pdf"));
       const pdfDoc = await loadingTask.promise;

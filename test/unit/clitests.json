@@ -45,6 +45,7 @@
     "pdf_history_spec.js",
     "pdf_link_service_spec.js",
     "pdf_spec.js",
+    "pkcs7_parser_spec.js",
     "pdf_viewer.component_spec.js",
     "pdf_viewer_spec.js",
     "postscript_spec.js",

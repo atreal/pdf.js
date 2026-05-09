@@ -34,6 +34,7 @@ import {
 import {
   AnnotationFactory,
   PopupAnnotation,
+  SignatureWidgetAnnotation,
   WidgetAnnotation,
 } from "./annotation.js";
 import {
@@ -1988,6 +1989,101 @@ class PDFDocument {
       });
 
     return shadow(this, "fieldObjects", promise);
+  }
+
+  async #collectSignatures(
+    fieldRef,
+    partialName,
+    inheritedFT,
+    signatures,
+    visitedRefs,
+    documentLength
+  ) {
+    const { xref } = this;
+
+    if (!(fieldRef instanceof Ref) || visitedRefs.has(fieldRef)) {
+      return;
+    }
+    visitedRefs.put(fieldRef);
+    const field = await xref.fetchAsync(fieldRef);
+    if (!(field instanceof Dict)) {
+      return;
+    }
+    if (field.has("T")) {
+      const partName = stringToPDFString(await field.getAsync("T"));
+      partialName = partialName === "" ? partName : `${partialName}.${partName}`;
+    }
+    const ftRaw = field.get("FT");
+    const ft = ftRaw instanceof Name ? ftRaw : inheritedFT;
+    if (isName(ft, "Sig")) {
+      try {
+        const data = SignatureWidgetAnnotation.collectSignatureData(
+          field,
+          partialName,
+          documentLength
+        );
+        if (data) {
+          signatures.push(data);
+        }
+      } catch (reason) {
+        warn(`#collectSignatures: "${reason}".`);
+      }
+    }
+    if (field.has("Kids")) {
+      const kids = await field.getAsync("Kids");
+      if (Array.isArray(kids)) {
+        for (const kid of kids) {
+          await this.#collectSignatures(
+            kid,
+            partialName,
+            ft,
+            signatures,
+            visitedRefs,
+            documentLength
+          );
+        }
+      }
+    }
+  }
+
+  get signatures() {
+    const promise = this.pdfManager
+      .ensureDoc("formInfo")
+      .then(async formInfo => {
+        if (!formInfo.hasFields) {
+          return null;
+        }
+        const annotationGlobals = await this.annotationGlobals;
+        if (!annotationGlobals) {
+          return null;
+        }
+        const { acroForm } = annotationGlobals;
+        const fields = acroForm.get("Fields");
+        if (!Array.isArray(fields)) {
+          return null;
+        }
+
+        const visitedRefs = new RefSet();
+        const signatures = [];
+        // Used by `collectSignatureData` to detect whether the document
+        // was modified after the signature: a signed `/ByteRange` that
+        // doesn't reach EOF means content was appended afterwards
+        // (incremental update).
+        const documentLength = this.stream?.end ?? null;
+        for (const fieldRef of fields) {
+          await this.#collectSignatures(
+            fieldRef,
+            "",
+            null,
+            signatures,
+            visitedRefs,
+            documentLength
+          );
+        }
+        return signatures.length > 0 ? signatures : null;
+      });
+
+    return shadow(this, "signatures", promise);
   }
 
   get hasJSActions() {

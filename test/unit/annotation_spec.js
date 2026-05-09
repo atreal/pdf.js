@@ -19,6 +19,7 @@ import {
   AnnotationFactory,
   getQuadPoints,
   MarkupAnnotation,
+  SignatureWidgetAnnotation,
 } from "../../src/core/annotation.js";
 import {
   AnnotationBorderStyleType,
@@ -1455,6 +1456,156 @@ describe("annotation", function () {
         expect(data.fieldName).toEqual("foo.bar");
       }
     );
+  });
+
+  describe("SignatureWidgetAnnotation", function () {
+    let sigFieldDict, sigValueDict;
+
+    beforeEach(function () {
+      sigFieldDict = new Dict();
+      sigFieldDict.set("Type", Name.get("Annot"));
+      sigFieldDict.set("Subtype", Name.get("Widget"));
+      sigFieldDict.set("FT", Name.get("Sig"));
+      sigFieldDict.set("T", "Signature1");
+
+      sigValueDict = new Dict();
+      sigValueDict.set("Type", Name.get("Sig"));
+      sigValueDict.set("Filter", Name.get("Adobe.PPKLite"));
+      sigValueDict.set("SubFilter", Name.get("adbe.pkcs7.detached"));
+      sigValueDict.set("ByteRange", [0, 100, 200, 50]);
+      sigValueDict.set("Contents", new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
+      sigValueDict.set("M", "D:20240115120000+01'00'");
+      sigValueDict.set("Name", "Alice Architect");
+      sigValueDict.set("Reason", "Approval");
+      sigValueDict.set("Location", "Marseille");
+      sigValueDict.set("ContactInfo", "alice@example.org");
+    });
+
+    afterEach(function () {
+      sigFieldDict = null;
+      sigValueDict = null;
+    });
+
+    it("should be created as a SignatureWidgetAnnotation", async function () {
+      sigFieldDict.set("V", sigValueDict);
+
+      const widgetRef = Ref.get(40, 0);
+      const xref = new XRefMock([{ ref: widgetRef, data: sigFieldDict }]);
+
+      const annotation = await AnnotationFactory.create(
+        xref,
+        widgetRef,
+        annotationGlobalsMock,
+        idFactoryMock
+      );
+      expect(annotation).toBeInstanceOf(SignatureWidgetAnnotation);
+      // The signature value is intentionally never returned via the
+      // standard form-field channel (issue 10347).
+      expect(annotation.data.fieldValue).toBeNull();
+      const fieldObject = annotation.getFieldObject();
+      expect(fieldObject.value).toBeNull();
+      expect(fieldObject.type).toEqual("signature");
+      expect(fieldObject.id).toEqual(jasmine.any(String));
+    });
+
+    it("collectSignatureData returns null when /V is missing", function () {
+      // No /V key set on sigFieldDict.
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Signature1"
+      );
+      expect(data).toBeNull();
+    });
+
+    it("collectSignatureData returns null when /V is not a dictionary", function () {
+      sigFieldDict.set("V", "not a dict");
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Signature1"
+      );
+      expect(data).toBeNull();
+    });
+
+    it("collectSignatureData extracts every metadata field", function () {
+      sigFieldDict.set("V", sigValueDict);
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Signature1"
+      );
+      expect(data).toEqual({
+        fieldName: "Signature1",
+        filter: "Adobe.PPKLite",
+        subFilter: "adbe.pkcs7.detached",
+        signerName: "Alice Architect",
+        signingDate: "D:20240115120000+01'00'",
+        reason: "Approval",
+        location: "Marseille",
+        contactInfo: "alice@example.org",
+        byteRange: [0, 100, 200, 50],
+        contentsLength: 4,
+        // The 4-byte fixture isn't a valid PKCS#7 blob; the parser is
+        // defensive and returns nulls on any decoding failure.
+        certificateSubject: null,
+        signingTimeFromCert: null,
+        // No documentLength passed → cannot determine coverage.
+        coversWholeDocument: null,
+        documentLength: null,
+      });
+    });
+
+    it("collectSignatureData detects an unmodified document", function () {
+      sigFieldDict.set("V", sigValueDict);
+      // Signed range [0..100] + [200..250]. The /Contents placeholder
+      // lives in the gap [100..200]. End-of-file at byte 250 means the
+      // signature covers everything.
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Signature1",
+        /* documentLength = */ 250
+      );
+      expect(data.coversWholeDocument).toEqual(true);
+      expect(data.documentLength).toEqual(250);
+    });
+
+    it("collectSignatureData detects a document modified after signing", function () {
+      sigFieldDict.set("V", sigValueDict);
+      // EOF at byte 1000 but signed range only ends at 250 → 750 bytes
+      // were appended after this signature was applied.
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Signature1",
+        /* documentLength = */ 1000
+      );
+      expect(data.coversWholeDocument).toEqual(false);
+      expect(data.documentLength).toEqual(1000);
+    });
+
+    it("collectSignatureData tolerates missing optional metadata", function () {
+      const minimalV = new Dict();
+      minimalV.set("Type", Name.get("Sig"));
+      minimalV.set("SubFilter", Name.get("ETSI.CAdES.detached"));
+      minimalV.set("ByteRange", [0, 50, 100, 25]);
+      sigFieldDict.set("V", minimalV);
+
+      const data = SignatureWidgetAnnotation.collectSignatureData(
+        sigFieldDict,
+        "Sig.A"
+      );
+      expect(data.fieldName).toEqual("Sig.A");
+      expect(data.subFilter).toEqual("ETSI.CAdES.detached");
+      expect(data.filter).toBeNull();
+      expect(data.signerName).toBeNull();
+      expect(data.signingDate).toBeNull();
+      expect(data.reason).toBeNull();
+      expect(data.location).toBeNull();
+      expect(data.contactInfo).toBeNull();
+      expect(data.byteRange).toEqual([0, 50, 100, 25]);
+      expect(data.contentsLength).toEqual(0);
+      expect(data.certificateSubject).toBeNull();
+      expect(data.signingTimeFromCert).toBeNull();
+      expect(data.coversWholeDocument).toBeNull();
+      expect(data.documentLength).toBeNull();
+    });
   });
 
   describe("TextWidgetAnnotation", function () {

@@ -1060,6 +1060,21 @@ class PDFDocumentProxy {
   }
 
   /**
+   * Returns metadata for every electronic signature field present in the
+   * document. Pure parsing — no cryptographic verification is performed.
+   * Each entry contains the SubFilter, signer/date/reason/location strings
+   * and the `/ByteRange` array, sufficient for downstream signature
+   * verification (server-side or otherwise) without re-parsing the PDF.
+   *
+   * @returns {Promise<Array<Object> | null>} A promise resolved with an array
+   *   of signature metadata, or `null` when the document has no signature
+   *   fields.
+   */
+  getSignatures() {
+    return this._transport.getSignatures();
+  }
+
+  /**
    * @returns {Promise<boolean>} A promise that is resolved with `true`
    *   if some /AcroForm fields have JavaScript actions.
    */
@@ -3015,6 +3030,10 @@ class WorkerTransport {
 
   getFieldObjects() {
     return this.#cacheSimpleMethod("GetFieldObjects");
+  }
+
+  getSignatures() {
+    return this.#cacheSimpleMethod("GetSignatures");
   }
 
   hasJSActions() {

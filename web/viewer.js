@@ -16,6 +16,7 @@
 import { ScrollMode, SpreadMode } from "./ui_utils.js";
 import { AppOptions } from "./app_options.js";
 import { initOpenadsBridge } from "./openads_bridge.js";
+import { initSignatureViewer } from "./signature_viewer.js";
 import { LinkTarget } from "./pdf_link_service.js";
 import { PDFViewerApplication } from "./app.js";
 import { RenderingStates } from "./renderable_view.js";
@@ -411,6 +412,7 @@ function webViewerLoad() {
   // loaded inside an iframe or with ?openads=1).
   PDFViewerApplication.initializedPromise.then(() => {
     initOpenadsBridge(PDFViewerApplication);
+    initSignatureViewer(PDFViewerApplication);
   });
 }
 

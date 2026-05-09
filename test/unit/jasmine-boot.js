@@ -91,6 +91,7 @@ async function initializePDFJS(callback) {
       "pdfjs-test/unit/pdf_history_spec.js",
       "pdfjs-test/unit/pdf_link_service_spec.js",
       "pdfjs-test/unit/pdf_spec.js",
+      "pdfjs-test/unit/pkcs7_parser_spec.js",
       "pdfjs-test/unit/pdf_viewer.component_spec.js",
       "pdfjs-test/unit/pdf_viewer_spec.js",
       "pdfjs-test/unit/postscript_spec.js",

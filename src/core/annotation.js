@@ -73,6 +73,7 @@ import { ColorSpaceUtils } from "./colorspace_utils.js";
 import { createImage } from "./editor/pdf_images.js";
 import { FileSpec } from "./file_spec.js";
 import { JpegStream } from "./jpeg_stream.js";
+import { extractPkcs7Metadata } from "./pkcs7_parser.js";
 import { ObjectLoader } from "./object_loader.js";
 import { OperatorList } from "./operator_list.js";
 import { parseMarkedContentProps } from "./evaluator_utils.js";
@@ -3898,6 +3899,103 @@ class SignatureWidgetAnnotation extends WidgetAnnotation {
       type: "signature",
     };
   }
+
+  /**
+   * Extract serializable metadata from a signature field's `/V` (signature)
+   * dictionary. Pure parsing only — no cryptographic verification.
+   *
+   * Intentionally does NOT return the raw PKCS#7 blob (`/Contents`); that
+   * payload is large and only useful for downstream signature validation,
+   * which is out of scope for the worker.
+   *
+   * @param {Dict} field - The signature field dictionary (FT=Sig).
+   * @param {string} fieldName - The fully-qualified field name (T path).
+   * @returns {Object | null}
+   */
+  static collectSignatureData(field, fieldName, documentLength = null) {
+    const v = field.get("V");
+    if (!(v instanceof Dict)) {
+      return null;
+    }
+
+    const filter = v.get("Filter");
+    const subFilter = v.get("SubFilter");
+    const byteRange = v.get("ByteRange");
+    const contents = v.get("Contents");
+    const signingTime = v.get("M");
+    const signerName = v.get("Name");
+    const reason = v.get("Reason");
+    const location = v.get("Location");
+    const contactInfo = v.get("ContactInfo");
+
+    let contentsLength = 0;
+    let contentsBytes = null;
+    if (contents instanceof Uint8Array) {
+      contentsBytes = contents;
+      contentsLength = contents.length;
+    } else if (typeof contents === "string") {
+      contentsLength = contents.length;
+      // Older / simpler parsers leave /Contents as a raw byte string; coerce
+      // so the PKCS#7 walker can run on it. `stringToBytes`-style is overkill
+      // here — the worker already gave us a string of charcodes 0-255.
+      contentsBytes = new Uint8Array(contents.length);
+      for (let i = 0; i < contents.length; i++) {
+        contentsBytes[i] = contents.charCodeAt(i) & 0xff;
+      }
+    }
+    const pkcs7 = contentsBytes ? extractPkcs7Metadata(contentsBytes) : null;
+
+    // Did the signed `/ByteRange` cover the entire file at parse time?
+    // If not, content was appended after this signature was applied —
+    // typically an incremental update (another signature, a form fill,
+    // or tampering). This is a *structural* check, not a cryptographic
+    // verification, but it's the same signal Adobe / Edge surface as
+    // "Document modified: yes/no".
+    let coversWholeDocument = null;
+    if (
+      Array.isArray(byteRange) &&
+      byteRange.length === 4 &&
+      typeof documentLength === "number" &&
+      documentLength > 0
+    ) {
+      const [a1, l1, a2, l2] = byteRange.map(Number);
+      const signedEnd = a2 + l2;
+      coversWholeDocument =
+        a1 === 0 &&
+        Number.isFinite(signedEnd) &&
+        signedEnd === documentLength &&
+        // Sanity: the gap between (a1+l1) and a2 is the /Contents
+        // placeholder; everything else in [0, documentLength] must be
+        // signed.
+        l1 >= 0 &&
+        a2 >= a1 + l1 &&
+        l2 >= 0;
+    }
+
+    return {
+      fieldName,
+      filter: filter instanceof Name ? filter.name : null,
+      subFilter: subFilter instanceof Name ? subFilter.name : null,
+      signerName:
+        typeof signerName === "string" ? stringToPDFString(signerName) : null,
+      signingDate:
+        typeof signingTime === "string" ? stringToPDFString(signingTime) : null,
+      reason: typeof reason === "string" ? stringToPDFString(reason) : null,
+      location:
+        typeof location === "string" ? stringToPDFString(location) : null,
+      contactInfo:
+        typeof contactInfo === "string" ? stringToPDFString(contactInfo) : null,
+      byteRange: Array.isArray(byteRange) ? byteRange.map(Number) : null,
+      contentsLength,
+      // Authoritative info parsed from the PKCS#7 / X.509 (no crypto verif).
+      // Useful when /Name and /M are empty, which is common in real signed PDFs.
+      certificateSubject: pkcs7?.subject ?? null,
+      signingTimeFromCert: pkcs7?.signingTime ?? null,
+      coversWholeDocument,
+      documentLength:
+        typeof documentLength === "number" ? documentLength : null,
+    };
+  }
 }
 
 class TextAnnotation extends MarkupAnnotation {
@@ -5888,5 +5986,6 @@ export {
   getQuadPoints,
   MarkupAnnotation,
   PopupAnnotation,
+  SignatureWidgetAnnotation,
   WidgetAnnotation,
 };

@@ -907,6 +907,29 @@ See https://github.com/adobe-type-tools/cmap-resources
           </div>
         </div>
 
+        <div id="signaturesBanner" class="signaturesBanner" hidden="true" role="region" aria-label="Signatures électroniques">
+          <button
+            id="signaturesBannerToggle"
+            class="signaturesBannerToggle"
+            type="button"
+            tabindex="0"
+            aria-expanded="false"
+            aria-controls="signaturesBannerDetails"
+          >
+            <span class="signaturesBannerIcon" aria-hidden="true"></span>
+            <span id="signaturesBannerSummary" class="signaturesBannerSummary"></span>
+            <span class="signaturesBannerHint" aria-hidden="true">Cliquer pour voir les détails</span>
+            <span class="signaturesBannerChevron" aria-hidden="true"></span>
+          </button>
+          <div id="signaturesBannerDetails" class="signaturesBannerDetails hidden">
+            <ul id="signaturesPanelList" class="signaturesPanelList"></ul>
+            <div class="signaturesPanelDisclaimer">
+              <span aria-hidden="true">⚠️</span>
+              Présence détectée — l'intégrité du document n'est pas vérifiée par ce viewer.
+            </div>
+          </div>
+        </div>
+
         <div id="viewerContainer" tabindex="0">
           <div id="viewer" class="pdfViewer"></div>
         </div>
