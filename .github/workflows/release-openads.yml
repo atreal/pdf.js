@@ -1,0 +1,102 @@
+name: Release pdfjs-openads
+
+# Build the generic viewer and publish a GitHub Release with the
+# downloadable bundle when a `pdfjs-openads-*` tag is pushed. Also
+# runnable manually from the Actions tab to rebuild a release.
+on:
+  push:
+    tags: ['pdfjs-openads-*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing pdfjs-openads-* tag to (re)build'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve target ref
+        id: ref
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build generic viewer
+        run: npx gulp generic
+
+      - name: Package
+        id: pkg
+        run: |
+          TAG="${{ steps.ref.outputs.tag }}"
+          OUT="${TAG}.zip"
+          (cd build/generic && zip -r "../../$OUT" .)
+          echo "filename=$OUT" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$OUT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"
+
+      - name: Generate release notes body
+        id: notes
+        run: |
+          cat <<EOF > release_notes.md
+          Built from \`${{ steps.ref.outputs.tag }}\`.
+
+          ## Contenu
+
+          Archive \`${{ steps.pkg.outputs.filename }}\` : sortie de \`npx gulp generic\` — viewer prêt à servir derrière n'importe quel serveur HTTP.
+
+          \`\`\`
+          web/viewer.html         ← page d'entrée
+          web/viewer.mjs          ← bundle viewer
+          build/pdf.mjs           ← API pdf.js
+          build/pdf.worker.mjs    ← worker
+          \`\`\`
+
+          ## Installation rapide
+
+          \`\`\`bash
+          curl -L https://github.com/atreal/pdf.js/releases/download/${{ steps.ref.outputs.tag }}/${{ steps.pkg.outputs.filename }} -o pdfjs.zip
+          unzip pdfjs.zip -d /var/www/pdfjs/
+          # Ouvrir : http://serveur/pdfjs/web/viewer.html?file=...
+          \`\`\`
+
+          ## Vérification d'intégrité
+
+          \`\`\`
+          sha256: ${{ steps.pkg.outputs.sha256 }}
+          \`\`\`
+          EOF
+
+      - name: Create / update GitHub release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          tag_name: ${{ steps.ref.outputs.tag }}
+          name: ${{ steps.ref.outputs.tag }}
+          body_path: release_notes.md
+          files: ${{ steps.pkg.outputs.filename }}
