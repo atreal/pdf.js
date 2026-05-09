@@ -199,6 +199,7 @@ export {
   makeMap,
   makeObj,
   MathClamp,
+  MeasureSubType,
   noContextMenu,
   normalizeUnicode,
   OPS,
