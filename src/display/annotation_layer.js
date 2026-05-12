@@ -3380,7 +3380,6 @@ class PolylineAnnotationElement extends AnnotationElement {
     return this.container;
   }
 
-
   getElementsToTriggerPopup() {
     return this.#polyline;
   }
@@ -4226,7 +4225,8 @@ class AnnotationLayer {
    *
    * @param {Object} data - The annotation data, in the same shape that
    *   the worker produces for native /Annots.
-   * @returns {{ element: AnnotationElement, root: HTMLElement, show: () => void, hide: () => void, remove: () => void } | null}
+   * @returns {{ element: AnnotationElement, root: HTMLElement, show: () =>
+   *   void, hide: () => void, remove: () => void } | null}
    */
   createSyntheticElement(data) {
     if (!this.#syntheticElementParams) {

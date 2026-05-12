@@ -2011,7 +2011,8 @@ class PDFDocument {
     }
     if (field.has("T")) {
       const partName = stringToPDFString(await field.getAsync("T"));
-      partialName = partialName === "" ? partName : `${partialName}.${partName}`;
+      partialName =
+        partialName === "" ? partName : `${partialName}.${partName}`;
     }
     const ftRaw = field.get("FT");
     const ft = ftRaw instanceof Name ? ftRaw : inheritedFT;

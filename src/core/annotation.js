@@ -71,9 +71,9 @@ import { bidi } from "./bidi.js";
 import { Catalog } from "./catalog.js";
 import { ColorSpaceUtils } from "./colorspace_utils.js";
 import { createImage } from "./editor/pdf_images.js";
+import { extractPkcs7Metadata } from "./pkcs7_parser.js";
 import { FileSpec } from "./file_spec.js";
 import { JpegStream } from "./jpeg_stream.js";
-import { extractPkcs7Metadata } from "./pkcs7_parser.js";
 import { ObjectLoader } from "./object_loader.js";
 import { OperatorList } from "./operator_list.js";
 import { parseMarkedContentProps } from "./evaluator_utils.js";
@@ -3988,7 +3988,8 @@ class SignatureWidgetAnnotation extends WidgetAnnotation {
       byteRange: Array.isArray(byteRange) ? byteRange.map(Number) : null,
       contentsLength,
       // Authoritative info parsed from the PKCS#7 / X.509 (no crypto verif).
-      // Useful when /Name and /M are empty, which is common in real signed PDFs.
+      // Useful when /Name and /M are empty, which is common in real
+      // signed PDFs.
       certificateSubject: pkcs7?.subject ?? null,
       signingTimeFromCert: pkcs7?.signingTime ?? null,
       coversWholeDocument,
@@ -4851,10 +4852,7 @@ class PolylineAnnotation extends MarkupAnnotation {
     };
     const titleText = user || subtypeLabels[measureSubType] || "Mesure";
     dict.set("T", stringToAsciiOrUTF16BE(titleText));
-    dict.set(
-      "Subj",
-      stringToAsciiOrUTF16BE(`pdfjs-measure-${measureSubType}`)
-    );
+    dict.set("Subj", stringToAsciiOrUTF16BE(`pdfjs-measure-${measureSubType}`));
     // /Contents combines the measure label and the user comment so a viewer
     // showing the popup (Firefox, Adobe…) sees both. The "\n———\n" separator
     // is a stable round-trip marker that's also readable as a horizontal rule.
@@ -4997,10 +4995,12 @@ class PolylineAnnotation extends MarkupAnnotation {
       const v = vertices;
       const m = (a, b) =>
         `${numberToString(a - llx)} ${numberToString(b - lly)}`;
-      buf.push(`${m(v[0], v[1])} m`);
-      buf.push(`${m(v[2], v[3])} l`);
-      buf.push(`${m(v[4], v[5])} m`);
-      buf.push(`${m(v[6], v[7])} l`);
+      buf.push(
+        `${m(v[0], v[1])} m`,
+        `${m(v[2], v[3])} l`,
+        `${m(v[4], v[5])} m`,
+        `${m(v[6], v[7])} l`
+      );
     } else {
       buf.push(
         `${numberToString(vertices[0] - llx)} ${numberToString(vertices[1] - lly)} m`
@@ -5011,8 +5011,7 @@ class PolylineAnnotation extends MarkupAnnotation {
         );
       }
     }
-    buf.push(isPolygon ? "h B" : "S");
-    buf.push("Q");
+    buf.push(isPolygon ? "h B" : "S", "Q");
 
     // Bake the human-readable measurement label as text in the appearance
     // stream so non-pdfjs viewers (Adobe, Foxit, Preview) display it at the
@@ -5078,27 +5077,29 @@ class PolylineAnnotation extends MarkupAnnotation {
         ? "1 1 1" // white
         : "0 0 0"; // black
       const fontResource = isCalibrate ? "/F2" : "/F1"; // F2 = Helvetica-Bold
-      buf.push("q");
-      buf.push(`${bgRgb} rg`);
       buf.push(
+        "q",
+        `${bgRgb} rg`,
         `${numberToString(bgX)} ${numberToString(bgY)} ${numberToString(bgW)} ${numberToString(bgH)} re f`
       );
       if (isCalibrate) {
         // 1px CSS border ≈ 0.75pt. Keep the path inside the bg rect so the
         // label width still matches the on-screen measurement.
-        buf.push(`0.706 0.325 0.035 RG`); // #b45309
-        buf.push(`0.75 w`);
         buf.push(
+          `0.706 0.325 0.035 RG`,
+          `0.75 w`,
           `${numberToString(bgX)} ${numberToString(bgY)} ${numberToString(bgW)} ${numberToString(bgH)} re S`
         );
       }
-      buf.push(`${textRgb} rg`);
-      buf.push("BT");
-      buf.push(`${fontResource} ${fontSize} Tf`);
-      buf.push(`${numberToString(tx)} ${numberToString(ty)} Td`);
-      buf.push(`(${PolylineAnnotation._escapePdfString(labelStr)}) Tj`);
-      buf.push("ET");
-      buf.push("Q");
+      buf.push(
+        `${textRgb} rg`,
+        "BT",
+        `${fontResource} ${fontSize} Tf`,
+        `${numberToString(tx)} ${numberToString(ty)} Td`,
+        `(${PolylineAnnotation._escapePdfString(labelStr)}) Tj`,
+        "ET",
+        "Q"
+      );
     }
 
     const appearance = buf.join("\n");
@@ -5190,14 +5191,17 @@ class PolylineAnnotation extends MarkupAnnotation {
   static _asciifyLabel(s) {
     return s
       .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/²/g, "2")
-      .replace(/[—–]/g, "-")
-      .replace(/[^\x20-\x7e]/g, "?");
+      .replaceAll(/[̀-ͯ]/g, "")
+      .replaceAll("²", "2")
+      .replaceAll(/[—–]/g, "-")
+      .replaceAll(/[^\x20-\x7e]/g, "?");
   }
 
   static _escapePdfString(s) {
-    return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+    return s
+      .replaceAll("\\", "\\\\")
+      .replaceAll("(", "\\(")
+      .replaceAll(")", "\\)");
   }
 
   // ── Print support ──────────────────────────────────────────────────────────
@@ -5249,7 +5253,11 @@ class PolylineAnnotation extends MarkupAnnotation {
     params
   ) {
     const ap = await this.createNewAppearanceStream(annotation, xref, params);
-    const annotationDict = this.createNewDict(annotation, xref, ap ? { ap } : {});
+    const annotationDict = this.createNewDict(
+      annotation,
+      xref,
+      ap ? { ap } : {}
+    );
     const newAnnotation = new this.prototype.constructor({
       dict: annotationDict,
       xref,

@@ -22,9 +22,9 @@ import {
   Util,
 } from "../../shared/util.js";
 import { DrawingEditor, DrawingOptions } from "./draw.js";
-import { InkDrawOutline } from "./drawers/inkdraw.js";
 import { AnnotationEditor } from "./editor.js";
 import { BasicColorPicker } from "./color_picker.js";
+import { InkDrawOutline } from "./drawers/inkdraw.js";
 import { Outline } from "./drawers/outline.js";
 import { PolylineAnnotationElement } from "../annotation_layer.js";
 
@@ -120,8 +120,18 @@ function buildInkLineFromVertices(vertices) {
     // Special length-12 form with NaN controls → toSVGPath emits L (line),
     // not C (curve). This is the path used for distance/perpendicular base.
     return new Float32Array([
-      NaN, NaN, NaN, NaN, vertices[0], vertices[1],
-      NaN, NaN, NaN, NaN, vertices[2], vertices[3],
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      vertices[0],
+      vertices[1],
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      vertices[2],
+      vertices[3],
     ]);
   }
   const line = new Float32Array(6 * n);
@@ -173,13 +183,7 @@ class MeasureLineOutliner {
     this.#rotation = rotation;
     this.#thickness = thickness;
 
-    [x, y] = Outline._normalizePoint(
-      x,
-      y,
-      parentWidth,
-      parentHeight,
-      rotation
-    );
+    [x, y] = Outline._normalizePoint(x, y, parentWidth, parentHeight, rotation);
     this.#startX = this.#endX = x;
     this.#startY = this.#endY = y;
   }
@@ -219,13 +223,7 @@ class MeasureLineOutliner {
     this.#parentWidth = parentWidth;
     this.#parentHeight = parentHeight;
     this.#rotation = rotation;
-    [x, y] = Outline._normalizePoint(
-      x,
-      y,
-      parentWidth,
-      parentHeight,
-      rotation
-    );
+    [x, y] = Outline._normalizePoint(x, y, parentWidth, parentHeight, rotation);
     this.#startX = this.#endX = x;
     this.#startY = this.#endY = y;
     return { path: { d: this.#toSVGPath() } };
@@ -264,10 +262,16 @@ class MeasureLineOutliner {
       this.#endY,
     ]);
     const line = new Float32Array([
-      NaN, NaN, NaN, NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN,
       this.#startX,
       this.#startY,
-      NaN, NaN, NaN, NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN,
       this.#endX,
       this.#endY,
     ]);
@@ -336,13 +340,7 @@ class MeasurePolylineOutliner {
     this.#thickness = thickness;
     this.#closed = closed;
 
-    [x, y] = Outline._normalizePoint(
-      x,
-      y,
-      parentWidth,
-      parentHeight,
-      rotation
-    );
+    [x, y] = Outline._normalizePoint(x, y, parentWidth, parentHeight, rotation);
     this.#vertices.push(x, y);
     this.#endX = x;
     this.#endY = y;
@@ -393,13 +391,7 @@ class MeasurePolylineOutliner {
     this.#rotation = rotation;
     // Confirm the live preview endpoint as a vertex.
     this.#vertices.push(this.#endX, this.#endY);
-    [x, y] = Outline._normalizePoint(
-      x,
-      y,
-      parentWidth,
-      parentHeight,
-      rotation
-    );
+    [x, y] = Outline._normalizePoint(x, y, parentWidth, parentHeight, rotation);
     this.#endX = x;
     this.#endY = y;
     return { path: { d: this.#toSVGPath() } };
@@ -463,8 +455,7 @@ class MeasurePolylineOutliner {
       // Close by appending the first vertex again so the appearance stream
       // has an explicit closing edge.
       const firstSame =
-        allVerts[allVerts.length - 2] === allVerts[0] &&
-        allVerts[allVerts.length - 1] === allVerts[1];
+        allVerts.at(-2) === allVerts[0] && allVerts.at(-1) === allVerts[1];
       if (!firstSame) {
         allVerts.push(allVerts[0], allVerts[1]);
       }
@@ -795,8 +786,7 @@ class MeasureEditor extends DrawingEditor {
     this.defaultL10nId = "pdfjs-editor-measure-editor";
     this.#measureSubType =
       params.measureSubType || MeasureEditor._defaultMeasureSubType;
-    this.#scaleFactor =
-      params.scaleFactor ?? MeasureEditor._defaultScaleFactor;
+    this.#scaleFactor = params.scaleFactor ?? MeasureEditor._defaultScaleFactor;
     this.#unit = params.unit || MeasureEditor._defaultUnit;
   }
 
@@ -1110,10 +1100,7 @@ class MeasureEditor extends DrawingEditor {
         // Persisted label offset in PDF points (X right, Y up — same
         // convention as PDF native coords). Defaults to [0, 0] when missing.
         labelOffsetPt: Array.isArray(elementData.labelOffset)
-          ? [
-              elementData.labelOffset[0] || 0,
-              elementData.labelOffset[1] || 0,
-            ]
+          ? [elementData.labelOffset[0] || 0, elementData.labelOffset[1] || 0]
           : [0, 0],
       };
     }
@@ -1622,8 +1609,7 @@ class MeasureEditor extends DrawingEditor {
       const measureCanvas = (MeasureEditor.#textMeasureCanvas ||=
         document.createElement("canvas"));
       const ctx = measureCanvas.getContext("2d");
-      const isCalibrate =
-        this.#measureSubType === MeasureSubType.CALIBRATE;
+      const isCalibrate = this.#measureSubType === MeasureSubType.CALIBRATE;
       // Canvas font sizes accept "pt" but the returned `width` is in CSS
       // pixels. Use px (12 = 9pt) to make the unit explicit, then convert
       // to PDF points (1pt = 4/3 px → multiply by 0.75).
@@ -1632,10 +1618,10 @@ class MeasureEditor extends DrawingEditor {
       // baking it, so we measure the same string the PDF will render.
       const asciiLabel = measureLabel
         .normalize("NFKD")
-        .replace(/[̀-ͯ]/g, "")
-        .replace(/²/g, "2")
-        .replace(/[—–]/g, "-")
-        .replace(/[^\x20-\x7e]/g, "?");
+        .replaceAll(/[̀-ͯ]/g, "")
+        .replaceAll("²", "2")
+        .replaceAll(/[—–]/g, "-")
+        .replaceAll(/[^\x20-\x7e]/g, "?");
       const widthCssPx = ctx.measureText(asciiLabel).width;
       const textW = (measuredTextWPt = widthCssPx * 0.75);
       const textH = fontSize * 1.2;
@@ -1823,21 +1809,21 @@ class MeasureEditor extends DrawingEditor {
       contents = label;
     }
 
-    const subtypeTitle = {
-      [MeasureSubType.DISTANCE]: "Mesure distance",
-      [MeasureSubType.POLYLINE]: "Mesure polyligne",
-      [MeasureSubType.AREA]: "Mesure surface",
-      [MeasureSubType.PERPENDICULAR]: "Mesure perpendiculaire",
-      [MeasureSubType.CALIBRATE]: "Étalonnage d'échelle",
-    }[this.#measureSubType] || "Mesure";
+    const subtypeTitle =
+      {
+        [MeasureSubType.DISTANCE]: "Mesure distance",
+        [MeasureSubType.POLYLINE]: "Mesure polyligne",
+        [MeasureSubType.AREA]: "Mesure surface",
+        [MeasureSubType.PERPENDICULAR]: "Mesure perpendiculaire",
+        [MeasureSubType.CALIBRATE]: "Étalonnage d'échelle",
+      }[this.#measureSubType] || "Mesure";
 
     const isPolygon = this.#measureSubType === MeasureSubType.AREA;
     const intent =
-      isPolygon
-        ? "PolygonDimension"
-        : this.#measureSubType === MeasureSubType.POLYLINE
-          ? "PolyLineDimension"
-          : "LineDimension";
+      {
+        [MeasureSubType.AREA]: "PolygonDimension",
+        [MeasureSubType.POLYLINE]: "PolyLineDimension",
+      }[this.#measureSubType] ?? "LineDimension";
 
     const {
       _drawingOptions: {
@@ -1901,8 +1887,10 @@ class MeasureEditor extends DrawingEditor {
       return;
     }
     const annotationLayer = this.parent?.annotationLayer;
-    if (!annotationLayer ||
-        typeof annotationLayer.createSyntheticElement !== "function") {
+    if (
+      !annotationLayer ||
+      typeof annotationLayer.createSyntheticElement !== "function"
+    ) {
       return;
     }
     const data = this.#buildViewElementData();
@@ -1912,28 +1900,20 @@ class MeasureEditor extends DrawingEditor {
     this.#viewElement = annotationLayer.createSyntheticElement(data);
     if (this.#viewElement?.root) {
       // Reloaded measures get their dblclick handler from
-      // PolylineAnnotationElement.render() (data.isMeasure → _editOnDoubleClick).
+      // PolylineAnnotationElement.render() (data.isMeasure →
+      // _editOnDoubleClick).
       // For synthesized measures we still hold the editor in memory, so
       // dispatch with editId = this.id to match `editor.id === editId` in
       // AnnotationEditorUIManager.updateMode().
       const editorId = this.id;
       this.#viewElement.root.addEventListener("dblclick", () => {
-        this._uiManager?._eventBus?.dispatch?.(
-          "switchannotationeditormode",
-          {
-            source: this,
-            mode: AnnotationEditorType.MEASURE,
-            editId: editorId,
-            mustEnterInEditMode: true,
-          }
-        );
+        this._uiManager?._eventBus?.dispatch?.("switchannotationeditormode", {
+          source: this,
+          mode: AnnotationEditorType.MEASURE,
+          editId: editorId,
+          mustEnterInEditMode: true,
+        });
       });
-    }
-  }
-
-  #hideViewElement() {
-    if (this.#viewElement) {
-      this.#viewElement.hide?.();
     }
   }
 
