@@ -169,9 +169,7 @@ function decodeTime(buf, tlv) {
     return null;
   }
   const tzPart =
-    tz === "Z" || !tz
-      ? "Z"
-      : `${tz.slice(0, 3)}:${tz.slice(3) || "00"}`;
+    tz === "Z" || !tz ? "Z" : `${tz.slice(0, 3)}:${tz.slice(3) || "00"}`;
   return `${y}-${mo}-${d}T${h}:${mi}:${s}${tzPart}`;
 }
 
@@ -266,9 +264,7 @@ function readFirstSignerInfo(buf, signerInfosTlv) {
   // sid ::= CHOICE {
   //   issuerAndSerialNumber: SEQUENCE { issuer Name, serialNumber INTEGER },
   //   [0] IMPLICIT subjectKeyIdentifier OCTET STRING (CMS v3) }
-  const children = [
-    ...iterChildren(buf, first.contentStart, first.contentEnd),
-  ];
+  const children = [...iterChildren(buf, first.contentStart, first.contentEnd)];
   let i = 0;
   if (children[i]?.tag === TAG_INTEGER) {
     i++; // version
@@ -374,15 +370,18 @@ function extractSignerSubjectDN(buf, certificatesTlv, signerInfo) {
     if (tbsChildren[i]?.tag === TAG_CONTEXT_0) {
       i++; // [0] EXPLICIT version
     }
-    const serialTlv = tbsChildren[i]?.tag === TAG_INTEGER ? tbsChildren[i++] : null;
+    const serialTlv =
+      tbsChildren[i]?.tag === TAG_INTEGER ? tbsChildren[i++] : null;
     if (tbsChildren[i]?.tag === TAG_SEQUENCE) {
       i++; // signatureAlgorithm
     }
-    const issuerTlv = tbsChildren[i]?.tag === TAG_SEQUENCE ? tbsChildren[i++] : null;
+    const issuerTlv =
+      tbsChildren[i]?.tag === TAG_SEQUENCE ? tbsChildren[i++] : null;
     if (tbsChildren[i]?.tag === TAG_SEQUENCE) {
       i++; // validity
     }
-    const subjectTlv = tbsChildren[i]?.tag === TAG_SEQUENCE ? tbsChildren[i] : null;
+    const subjectTlv =
+      tbsChildren[i]?.tag === TAG_SEQUENCE ? tbsChildren[i] : null;
     if (!subjectTlv) {
       continue;
     }
