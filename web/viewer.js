@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
+import { applyOpenadsAppOptions, initOpenadsBridge } from "./openads_bridge.js";
 import { ScrollMode, SpreadMode } from "./ui_utils.js";
 import { AppOptions } from "./app_options.js";
-import { applyOpenadsAppOptions, initOpenadsBridge } from "./openads_bridge.js";
 import { initSignatureViewer } from "./signature_viewer.js";
 import { LinkTarget } from "./pdf_link_service.js";
 import { PDFViewerApplication } from "./app.js";
@@ -92,9 +92,7 @@ function getViewerConfiguration() {
         "editorMeasureParamsToolbar"
       ),
       editorMeasureColor: document.getElementById("editorMeasureColor"),
-      editorMeasureLineWidth: document.getElementById(
-        "editorMeasureLineWidth"
-      ),
+      editorMeasureLineWidth: document.getElementById("editorMeasureLineWidth"),
       editorMeasureScaleLabel: document.getElementById(
         "editorMeasureScaleLabel"
       ),
@@ -354,9 +352,7 @@ function getViewerConfiguration() {
       ),
       editorHighlightShowAll: document.getElementById("editorHighlightShowAll"),
       editorMeasureColor: document.getElementById("editorMeasureColor"),
-      editorMeasureLineWidth: document.getElementById(
-        "editorMeasureLineWidth"
-      ),
+      editorMeasureLineWidth: document.getElementById("editorMeasureLineWidth"),
       editorMeasureOpacity: document.getElementById("editorMeasureOpacity"),
       editorMeasureScaleLabel: document.getElementById(
         "editorMeasureScaleLabel"

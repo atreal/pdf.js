@@ -462,7 +462,6 @@ class Toolbar {
       editorMeasureAreaButton,
       editorMeasurePerpendicularButton,
       editorMeasureCalibrateButton,
-      editorMeasureParamsToolbar,
     } = this.#opts;
 
     toggleExpandedBtn(

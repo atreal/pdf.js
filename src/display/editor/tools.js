@@ -2073,8 +2073,10 @@ class AnnotationEditorUIManager {
 
     this.#mode = mode;
     if (mode !== AnnotationEditorType.MEASURE) {
-      this.#viewer?.classList.remove("measureMultiVertexMode");
-      this.#viewer?.classList.remove("measureSelecting");
+      this.#viewer?.classList.remove(
+        "measureMultiVertexMode",
+        "measureSelecting"
+      );
     }
     if (mode === AnnotationEditorType.NONE) {
       this.setEditingState(false);
@@ -2203,13 +2205,8 @@ class AnnotationEditorUIManager {
 
     if (type === AnnotationEditorParamsType.MEASURE_SUBTYPE) {
       const isMultiVertex =
-        value === "polyline" ||
-        value === "area" ||
-        value === "perpendicular";
-      this.#viewer.classList.toggle(
-        "measureMultiVertexMode",
-        isMultiVertex
-      );
+        value === "polyline" || value === "area" || value === "perpendicular";
+      this.#viewer.classList.toggle("measureMultiVertexMode", isMultiVertex);
       // null = mode sélection (aucun sous-type actif, le curseur est une flèche
       // et les éditeurs existants sont cliquables). Non-null = mode dessin.
       this.#viewer?.classList.toggle("measureSelecting", !value);
@@ -2217,7 +2214,7 @@ class AnnotationEditorUIManager {
       // `.selectedEditor` class which our CSS uses to keep it interactive,
       // but it would now intercept the user's next click instead of
       // starting a new drawing of the freshly-selected subtype.
-      for (const ed of [...this.#selectedEditors]) {
+      for (const ed of this.#selectedEditors) {
         ed.unselect();
       }
       this.#selectedEditors.clear();
