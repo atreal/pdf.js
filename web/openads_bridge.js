@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+import { AppOptions } from "./app_options.js";
+
 /**
  * Bridge between the pdf.js viewer (with MeasureEditor) and the openADS
  * application embedding it in an iframe.
@@ -44,6 +46,46 @@
  * its own integrity check (e.g. server-side openssl_pkcs7_verify on the
  * range described by `byteRange`).
  */
+
+/**
+ * Applique les AppOptions selon le mode openADS lu dans la query string.
+ * À appeler depuis web/viewer.js DANS `webViewerLoad`, AVANT `PDFViewerApplication.run(config)`,
+ * pour que `annotationEditorMode` soit pris en compte par l'AnnotationEditorUIManager.
+ *
+ * Modes :
+ *   - "preview" (défaut) : désactive l'AnnotationEditor (toolbar invisible) + tous les
+ *     enableXxxEditor facultatifs (Measure, Comment, HighlightFloatingButton, Signature).
+ *   - "annotate" : active explicitement l'AnnotationEditor (mode NONE = toolbar visible
+ *     sans éditeur sélectionné) + tous les enableXxxEditor facultatifs.
+ *
+ * `disablePreferences` est forcé à `true` dans les deux cas pour empêcher les
+ * Preferences locales du navigateur (IndexedDB) de réécraser ces choix.
+ */
+export function applyOpenadsAppOptions() {
+  const params = new URLSearchParams(window.location.search);
+  const inIframe = window !== window.parent;
+  if (params.get("openads") !== "1" && !inIframe) {
+    return;
+  }
+  AppOptions.set("disablePreferences", true);
+  const mode = params.get("mode") === "annotate" ? "annotate" : "preview";
+  if (mode === "preview") {
+    AppOptions.set("annotationEditorMode", -1); // AnnotationEditorType.DISABLE
+    AppOptions.set("enableMeasureEditor", false);
+    AppOptions.set("enableComment", false);
+    AppOptions.set("enableHighlightFloatingButton", false);
+    AppOptions.set("enableSignatureEditor", false);
+  } else {
+    AppOptions.set("annotationEditorMode", 0); // AnnotationEditorType.NONE (toolbar visible, aucun éditeur actif par défaut)
+    AppOptions.set("enableMeasureEditor", true);
+    AppOptions.set("enableComment", true);
+    AppOptions.set("enableHighlightFloatingButton", true);
+    AppOptions.set("enableSignatureEditor", true);
+    AppOptions.set("enableAltText", true);
+    AppOptions.set("enableAutoLinking", true);
+    AppOptions.set("enableGuessAltText", true);
+  }
+}
 
 const isInIframe = window !== window.parent;
 const urlParams = new URLSearchParams(window.location.search);
