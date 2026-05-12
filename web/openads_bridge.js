@@ -49,19 +49,18 @@ import { AppOptions } from "./app_options.js";
 
 /**
  * Applique les AppOptions selon le mode openADS lu dans la query string.
- * À appeler depuis web/viewer.js DANS `webViewerLoad`, AVANT `PDFViewerApplication.run(config)`,
- * pour que `annotationEditorMode` soit pris en compte par l'AnnotationEditorUIManager.
+ * À appeler dans `webViewerLoad` AVANT `PDFViewerApplication.run(config)`.
  *
  * Modes :
- *   - "preview" (défaut) : désactive l'AnnotationEditor (toolbar invisible) + tous les
- *     enableXxxEditor facultatifs (Measure, Comment, HighlightFloatingButton, Signature).
- *   - "annotate" : active explicitement l'AnnotationEditor (mode NONE = toolbar visible
- *     sans éditeur sélectionné) + tous les enableXxxEditor facultatifs.
+ *   - "preview" (défaut) : annotationEditorMode=-1 (DISABLE), tous les
+ *     enableXxxEditor désactivés (Measure, Comment, Highlight, Signature).
+ *   - "annotate" : annotationEditorMode=0 (NONE, toolbar visible) + tous
+ *     les enableXxxEditor activés.
  *
- * `disablePreferences` est forcé à `true` dans les deux cas pour empêcher les
- * Preferences locales du navigateur (IndexedDB) de réécraser ces choix.
+ * `disablePreferences` est forcé à `true` pour éviter qu'IndexedDB
+ * n'écrase ces choix.
  */
-export function applyOpenadsAppOptions() {
+function applyOpenadsAppOptions() {
   const params = new URLSearchParams(window.location.search);
   const inIframe = window !== window.parent;
   if (params.get("openads") !== "1" && !inIframe) {
@@ -157,17 +156,12 @@ function _loadPdfFromParent() {
       const binaryStr = parent.window.pdfjs_content_b64;
       const uint8 = _binaryStringToUint8Array(binaryStr);
       _waitForViewerReady().then(() => _app.open({ data: uint8 }));
-      return;
     }
   } catch {
     // cross-origin — fall through to other strategies
   }
 
-  // Strategy 2: ?file= parameter handled natively by the viewer.
-  if (urlParams.get("file")) {
-    return;
-  }
-
+  // Strategy 2: ?file= — handled natively by the viewer.
   // Strategy 3: wait for an "openads-pdf-load" postMessage.
 }
 
@@ -177,14 +171,11 @@ async function _saveToOpenads() {
   }
   try {
     const storage = _app.pdfDocument.annotationStorage;
-    let bytes;
-    if (storage.size > 0) {
-      bytes = await _app.pdfDocument.saveDocument();
-    } else {
-      // No edits — return the raw bytes (still send to parent so it can
-      // confirm the round-trip without consuming PDF data).
-      bytes = await _app.pdfDocument.getData();
-    }
+    // No edits — getData() returns raw bytes without re-serialising.
+    const bytes =
+      storage.size > 0
+        ? await _app.pdfDocument.saveDocument()
+        : await _app.pdfDocument.getData();
 
     const pdfBase64 = _uint8ArrayToBase64(
       bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
@@ -203,7 +194,7 @@ async function _saveToOpenads() {
       {
         type: "openads-show-toast",
         message: "Erreur lors de la sauvegarde : " + err.message,
-        type: "error",
+        level: "error",
       },
       "*"
     );
@@ -302,4 +293,4 @@ function _waitForViewerReady() {
   });
 }
 
-export { initOpenadsBridge };
+export { applyOpenadsAppOptions, initOpenadsBridge };

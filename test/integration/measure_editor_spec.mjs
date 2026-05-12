@@ -26,7 +26,6 @@ import {
   waitForPointerUp,
   waitForSerialized,
   waitForStorageEntries,
-  waitForTimeout,
 } from "./test_utils.mjs";
 
 // The legacy `#editorMeasureButton` no longer exists — the toolbar now
@@ -40,7 +39,6 @@ async function switchToMeasure(page, disable = false) {
     // Switch to a different editor mode to leave MEASURE behind. We use
     // FreeText since its toggle is independent from MEASURE.
     await switchToEditor("FreeText", page);
-    return;
   }
   // No-op — the test's next `selectSubType` clicks a subtype button which
   // implicitly enters MEASURE mode.
@@ -91,13 +89,23 @@ async function selectSubType(page, sub) {
     await page.waitForSelector(".annotationEditorLayer.measureEditing");
   }
   // Allow the eventBus dispatch to land before the next interaction.
-  await waitForTimeout(page, 50);
+  await page.evaluate(
+    () =>
+      new Promise(r => {
+        setTimeout(r, 50);
+      })
+  );
 }
 
 async function clickSubTypeButton(page, sub) {
   const cap = sub.charAt(0).toUpperCase() + sub.slice(1);
   await page.click(`#editorMeasure${cap}Button`);
-  await waitForTimeout(page, 50);
+  await page.evaluate(
+    () =>
+      new Promise(r => {
+        setTimeout(r, 50);
+      })
+  );
 }
 
 async function isSubTypeToggled(page, sub) {
@@ -424,7 +432,7 @@ describe("MeasureEditor", () => {
           );
 
           // The calibrate flow opens a <dialog> (not window.prompt) — interact
-          // with it so #runCalibrate gets a valid distance and updates scaleFactor.
+          // so #runCalibrate gets a valid distance and updates scaleFactor.
           await page.waitForSelector("#pdfjsMeasureCalibrateDialog[open]");
           await page.evaluate(() => {
             const input = document.querySelector(
@@ -544,9 +552,7 @@ describe("MeasureEditor", () => {
 
           // Switching subtype should unselect.
           await selectSubType(page, "area");
-          await page.waitForSelector(
-            ".measureEditor:not(.selectedEditor)"
-          );
+          await page.waitForSelector(".measureEditor:not(.selectedEditor)");
         })
       );
     });
@@ -601,7 +607,7 @@ describe("MeasureEditor", () => {
           // Switch out of MEASURE to expose the synthetic view in NONE mode.
           await switchToMeasure(page, /* disable = */ true);
 
-          // The synthetic <svg> sits under .annotationLayer .polylineAnnotation;
+          // The <svg> sits under .annotationLayer .polylineAnnotation;
           // its `dblclick` handler (set in MeasureEditor.#showViewElement) maps
           // to switchannotationeditormode → updateMode → enterInEditMode.
           await page.waitForSelector(
@@ -729,8 +735,9 @@ describe("MeasureEditor", () => {
       await Promise.all(
         pages.map(async ([_, page]) => {
           const enabled = await page.evaluate(
-            () => !!window.PDFViewerApplication.pdfViewer
-              ?._layerProperties?.enableComment
+            () =>
+              !!window.PDFViewerApplication.pdfViewer?._layerProperties
+                ?.enableComment
           );
           expect(enabled).toBe(true);
         })
@@ -813,7 +820,12 @@ describe("MeasureEditor", () => {
             input.dispatchEvent(new Event("input", { bubbles: true }));
           });
           // Let the eventBus dispatch land before the next drag.
-          await waitForTimeout(page, 50);
+          await page.evaluate(
+            () =>
+              new Promise(r => {
+                setTimeout(r, 50);
+              })
+          );
 
           // Second distance — should use the new green default. With the
           // pre-fix behavior it would still be red because the param was
@@ -871,8 +883,7 @@ describe("MeasureEditor", () => {
 
           // No MeasureEditor exists yet — storage is empty.
           const sizeBefore = await page.evaluate(
-            () =>
-              window.PDFViewerApplication.pdfDocument.annotationStorage.size
+            () => window.PDFViewerApplication.pdfDocument.annotationStorage.size
           );
           expect(sizeBefore)
             .withContext("storage must be empty during the drawing session")
@@ -921,7 +932,12 @@ describe("MeasureEditor", () => {
           await waitForStorageEntries(page, 1);
 
           // Hold for a moment to let any belated re-entry (the bug) land.
-          await waitForTimeout(page, 100);
+          await page.evaluate(
+            () =>
+              new Promise(r => {
+                setTimeout(r, 100);
+              })
+          );
 
           const measures = await getMeasureSerialized(page);
           expect(measures.length)
@@ -953,7 +969,9 @@ describe("MeasureEditor", () => {
               ?.classList.contains("measureSelecting")
           );
           expect(selecting)
-            .withContext("viewer must expose .measureSelecting in selection mode")
+            .withContext(
+              "viewer must expose .measureSelecting in selection mode"
+            )
             .toBe(true);
         })
       );
@@ -1124,7 +1142,10 @@ describe("MeasureEditor", () => {
             color => {
               const svgs = document.querySelectorAll(".canvasWrapper svg");
               for (const svg of svgs) {
-                if (svg.getAttribute("fill")?.toLowerCase() === color.toLowerCase()) {
+                if (
+                  svg.getAttribute("fill")?.toLowerCase() ===
+                  color.toLowerCase()
+                ) {
                   return true;
                 }
               }
@@ -1163,12 +1184,17 @@ describe("MeasureEditor", () => {
           });
 
           // Brief tick — give the live update a chance to land.
-          await waitForTimeout(page, 50);
+          await page.evaluate(
+            () =>
+              new Promise(r => {
+                setTimeout(r, 50);
+              })
+          );
 
           const fillSeen = await page.evaluate(() => {
             const svgs = document.querySelectorAll(".canvasWrapper svg");
             // Find the most-recently-added SVG (last in document order).
-            const svg = svgs[svgs.length - 1];
+            const svg = svgs.at(-1);
             return svg?.getAttribute("fill") || "";
           });
           // Distance never receives a fill — it stays unset (or "none").
@@ -1294,7 +1320,7 @@ describe("MeasureEditor", () => {
           expect(css.fontSize).toBe("12px");
           expect(css.fontFamily.toLowerCase()).toContain("helvetica");
           // Opaque white (rgb(255, 255, 255)) — no alpha channel.
-          expect(css.background.replace(/\s/g, "")).toBe("rgb(255,255,255)");
+          expect(css.background.replaceAll(/\s/g, "")).toBe("rgb(255,255,255)");
         })
       );
     });
@@ -1349,8 +1375,8 @@ describe("MeasureEditor", () => {
             .withContext(".measureCalibrate .measureLabel must exist")
             .not.toBeNull();
           // #f59e0b → rgb(245, 158, 11)
-          expect(css.background.replace(/\s/g, "")).toBe("rgb(245,158,11)");
-          expect(css.color.replace(/\s/g, "")).toBe("rgb(255,255,255)");
+          expect(css.background.replaceAll(/\s/g, "")).toBe("rgb(245,158,11)");
+          expect(css.color.replaceAll(/\s/g, "")).toBe("rgb(255,255,255)");
           // 600 (bold) — accept any bold-ish weight.
           expect(parseInt(css.fontWeight, 10)).toBeGreaterThanOrEqual(600);
         })
@@ -1496,8 +1522,7 @@ describe("MeasureEditor", () => {
 
           await page.waitForFunction(
             () =>
-              document.getElementById("editorMeasureColor")?.value ===
-              "#ff0000"
+              document.getElementById("editorMeasureColor")?.value === "#ff0000"
           );
         })
       );
@@ -1560,8 +1585,8 @@ describe("MeasureEditor", () => {
     it("measure toolbar is hidden when the option is off", async () => {
       await Promise.all(
         pages.map(async ([_, page]) => {
-          const enabled = await page.evaluate(
-            () => window.PDFViewerApplicationOptions?.get("enableMeasureEditor")
+          const enabled = await page.evaluate(() =>
+            window.PDFViewerApplicationOptions?.get("enableMeasureEditor")
           );
           expect(enabled).toBe(false);
 
