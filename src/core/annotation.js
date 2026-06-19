@@ -4701,7 +4701,9 @@ class PolylineAnnotation extends MarkupAnnotation {
       // 0.27 m/pt but ruins 0.01764 m/pt (1:50) into 0.02 (~11% off).
       const r = measureDict.get("R");
       if (typeof r === "string") {
-        const m = /=\s*([0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s+(\S+)/.exec(r);
+        const m = /=\s*((?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?)\s+(\S+)/i.exec(
+          r
+        );
         if (m) {
           const parsed = parseFloat(m[1]);
           if (isFinite(parsed) && parsed > 0) {
@@ -5191,7 +5193,7 @@ class PolylineAnnotation extends MarkupAnnotation {
   static _asciifyLabel(s) {
     return s
       .normalize("NFKD")
-      .replaceAll(/[̀-ͯ]/g, "")
+      .replaceAll(/[\u0300-\u036f]/g, "")
       .replaceAll("²", "2")
       .replaceAll(/[—–]/g, "-")
       .replaceAll(/[^\x20-\x7e]/g, "?");

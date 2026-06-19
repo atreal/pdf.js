@@ -3291,6 +3291,9 @@ class CircleAnnotationElement extends AnnotationElement {
 }
 
 class PolylineAnnotationElement extends AnnotationElement {
+  // Classe exportée (mesure) : tsc vérifie alors getElementsToTriggerPopup vs
+  // la classe de base. Champ typé `any` comme les overrides upstream (Ink).
+  /** @type {any} */
   #polyline = null;
 
   constructor(parameters) {

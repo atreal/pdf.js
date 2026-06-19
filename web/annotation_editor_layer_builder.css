@@ -133,7 +133,14 @@
    * existing editor (e.g. a polygon under the cursor) when placing the next
    * vertex. Keep pointer events disabled on every editor for the whole
    * session. */
-  &.drawingSession :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
+  &.drawingSession
+    :is(
+      .freeTextEditor,
+      .inkEditor,
+      .stampEditor,
+      .signatureEditor,
+      .measureEditor
+    ) {
     pointer-events: none !important;
   }
 
@@ -162,7 +169,6 @@
   &.disabled .measureEditor:not(.hasAnnotationLayerSibling) {
     pointer-events: auto;
   }
-
 
   &.getElements {
     pointer-events: auto !important;
@@ -233,7 +239,10 @@
   padding: 1px 2.66px;
   border-radius: 0;
   border: 0;
-  font: 12px / 1.2 Helvetica, Arial, sans-serif;
+  font:
+    12px / 1.2 Helvetica,
+    Arial,
+    sans-serif;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
@@ -277,9 +286,14 @@
   }
 }
 
-
 .annotationEditorLayer
-  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
+  :is(
+    .freeTextEditor,
+    .inkEditor,
+    .stampEditor,
+    .signatureEditor,
+    .measureEditor
+  ) {
   position: absolute;
   background: transparent;
   z-index: 1;
@@ -734,7 +748,13 @@
 }
 
 .annotationEditorLayer {
-  :is(.freeTextEditor, .inkEditor, .stampEditor, .signatureEditor, .measureEditor) {
+  :is(
+    .freeTextEditor,
+    .inkEditor,
+    .stampEditor,
+    .signatureEditor,
+    .measureEditor
+  ) {
     & > .resizers {
       position: absolute;
       inset: 0;

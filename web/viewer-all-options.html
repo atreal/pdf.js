@@ -1,30 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-<meta charset="utf-8">
-<title>Redirection vers le viewer (toutes options activées)</title>
-<script>
-  (function () {
-    const search = window.location.search; // conserve ?file=...
-    // _parseHashParams lowercases option names before matching, so the
-    // hash must use lowercase keys.
-    const opts = [
-      "enablealttext=true",
-      "enableautolinking=true",
-      "enablecomment=true",
-      "enablehighlightfloatingbutton=true",
-      "enablemeasureeditor=true",
-      "enablemerge=true",
-      "enablesignatureeditor=true",
-      "enablesplitmerge=true",
-      "enableupdatedaddimage=true",
-    ];
-    const hash = "#" + opts.join("&");
-    window.location.replace("viewer.html" + (search || "") + hash);
-  })();
-</script>
-</head>
-<body>
-<p>Redirection vers le viewer&hellip;</p>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirection vers le viewer (toutes options activées)</title>
+    <script>
+      (function () {
+        const search = window.location.search; // conserve ?file=...
+        // _parseHashParams lowercases option names before matching, so the
+        // hash must use lowercase keys.
+        const opts = [
+          "enablealttext=true",
+          "enableautolinking=true",
+          "enablecomment=true",
+          "enablehighlightfloatingbutton=true",
+          "enablemeasureeditor=true",
+          "enablemerge=true",
+          "enablesignatureeditor=true",
+          "enablesplitmerge=true",
+          "enableupdatedaddimage=true",
+        ];
+        const hash = "#" + opts.join("&");
+        window.location.replace("viewer.html" + (search || "") + hash);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirection vers le viewer&hellip;</p>
+  </body>
 </html>

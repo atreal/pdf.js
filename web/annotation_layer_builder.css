@@ -133,7 +133,6 @@
   }
 
   section {
-
     &:has(div.annotationContent) {
       canvas.annotationContent {
         display: none;

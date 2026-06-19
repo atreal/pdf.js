@@ -1070,7 +1070,7 @@ class MeasureEditor extends DrawingEditor {
         const idx = rawContents.indexOf(sep);
         if (idx !== -1) {
           comment = rawContents.slice(idx + sep.length);
-        } else if (!/^[\d.,]+\s+[a-zA-Z]+²?$/.test(rawContents.trim())) {
+        } else if (!/^[\d.,]+\s+[a-z]+²?$/i.test(rawContents.trim())) {
           // No separator and not a bare label → assume the whole field is
           // the user comment.
           comment = rawContents;
@@ -1618,7 +1618,7 @@ class MeasureEditor extends DrawingEditor {
       // baking it, so we measure the same string the PDF will render.
       const asciiLabel = measureLabel
         .normalize("NFKD")
-        .replaceAll(/[̀-ͯ]/g, "")
+        .replaceAll(/[\u0300-\u036f]/g, "")
         .replaceAll("²", "2")
         .replaceAll(/[—–]/g, "-")
         .replaceAll(/[^\x20-\x7e]/g, "?");

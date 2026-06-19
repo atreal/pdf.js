@@ -1660,7 +1660,8 @@ dialog :link {
   border-bottom-color: light-dark(rgb(220 150 150), rgb(140 60 60));
 }
 
-.signaturesBanner.signaturesBannerWarn .signaturesBannerToggle:is(:hover, :focus-visible) {
+.signaturesBanner.signaturesBannerWarn
+  .signaturesBannerToggle:is(:hover, :focus-visible) {
   background-color: light-dark(rgb(255 200 200), rgb(100 40 40));
 }
 
