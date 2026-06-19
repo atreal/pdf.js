@@ -334,6 +334,13 @@ class BasicColorPicker {
     BasicColorPicker.#l10nColor ||= Object.freeze({
       freetext: "pdfjs-editor-color-picker-free-text-input",
       ink: "pdfjs-editor-color-picker-ink-input",
+      // editorType de la mesure = `measure-<sous-type>` ; un seul libellé.
+      measure: "pdfjs-editor-color-picker-measure-input",
+      "measure-distance": "pdfjs-editor-color-picker-measure-input",
+      "measure-area": "pdfjs-editor-color-picker-measure-input",
+      "measure-polyline": "pdfjs-editor-color-picker-measure-input",
+      "measure-perpendicular": "pdfjs-editor-color-picker-measure-input",
+      "measure-calibrate": "pdfjs-editor-color-picker-measure-input",
     });
   }
 

@@ -1542,3 +1542,15 @@
     }
   }
 }
+
+/* Étiquette d'échelle et aide de la barre mesure : déplacés ici depuis des
+   styles inline, bloqués par la CSP style-src 'self' de viewer.html (v6). */
+#editorMeasureScaleLabel {
+  font-size: 12px;
+  color: #666;
+}
+
+#editorMeasureHint {
+  font-size: 11px;
+  color: #888;
+}

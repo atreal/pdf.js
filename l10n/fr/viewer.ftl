@@ -298,6 +298,8 @@ pdfjs-editor-ink-button =
     .title = Dessiner
 pdfjs-editor-color-picker-ink-input =
     .title = Changer la couleur pour dessiner
+pdfjs-editor-color-picker-measure-input =
+    .title = Changer la couleur de mesure
 pdfjs-editor-ink-button-label = Dessiner
 pdfjs-editor-stamp-button =
     .title = Ajouter ou modifier des images
@@ -337,6 +339,9 @@ pdfjs-editor-signature-editor1 =
 pdfjs-editor-stamp-editor =
     .aria-label = Éditeur d’images
 
+pdfjs-editor-measure-editor =
+    .aria-label = Éditeur de mesures
+
 ## Remove button for the various kind of editor.
 
 pdfjs-editor-remove-ink-button =
@@ -349,6 +354,8 @@ pdfjs-editor-remove-highlight-button =
     .title = Supprimer le surlignage
 pdfjs-editor-remove-signature-button =
     .title = Retirer la signature
+pdfjs-editor-remove-measure-button =
+    .title = Supprimer la mesure
 
 ##
 
@@ -531,6 +538,7 @@ pdfjs-editor-freetext-added-alert = Texte ajouté
 pdfjs-editor-ink-added-alert = Dessin ajouté
 pdfjs-editor-stamp-added-alert = Image ajoutée
 pdfjs-editor-signature-added-alert = Signature ajoutée
+pdfjs-editor-measure-added-alert = Mesure ajoutée
 
 ## "Annotations removed" bar
 

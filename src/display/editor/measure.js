@@ -44,17 +44,30 @@ function promptCalibrationDistance(measuredMm, currentValue = "1") {
     if (!dialog) {
       dialog = document.createElement("dialog");
       dialog.id = "pdfjsMeasureCalibrateDialog";
+      // Styles via un bloc <style> (autorisé par la CSP style-src-elem
+      // 'unsafe-inline') plutôt que des attributs style= inline, bloqués par
+      // style-src 'self' du viewer v6.
       dialog.innerHTML = `
-        <form method="dialog" style="display:flex;flex-direction:column;gap:12px;min-width:320px;font:13px system-ui,sans-serif;">
-          <h2 style="margin:0;font-size:14px;font-weight:600;">Étalonnage de l'échelle</h2>
-          <p data-hint style="margin:0;padding:6px 8px;background:#f0f4ff;border-radius:4px;font-size:12px;color:#333;"></p>
-          <label style="display:flex;flex-direction:column;gap:6px;">
+        <style>
+          #pdfjsMeasureCalibrateDialog form { display: flex; flex-direction: column; gap: 12px; min-width: 320px; font: 13px system-ui, sans-serif; }
+          #pdfjsMeasureCalibrateDialog h2 { margin: 0; font-size: 14px; font-weight: 600; }
+          #pdfjsMeasureCalibrateDialog [data-hint] { margin: 0; padding: 6px 8px; background: #f0f4ff; border-radius: 4px; font-size: 12px; color: #333; }
+          #pdfjsMeasureCalibrateDialog label { display: flex; flex-direction: column; gap: 6px; }
+          #pdfjsMeasureCalibrateDialog input { padding: 6px 8px; border: 1px solid #999; border-radius: 4px; font: inherit; }
+          #pdfjsMeasureCalibrateDialog .pdfjsMeasureBtns { display: flex; justify-content: flex-end; gap: 8px; }
+          #pdfjsMeasureCalibrateDialog [data-action="cancel"] { padding: 6px 12px; border: 1px solid #999; background: #f5f5f5; border-radius: 4px; cursor: pointer; }
+          #pdfjsMeasureCalibrateDialog [data-action="ok"] { padding: 6px 12px; border: 1px solid #0a558c; background: #0a558c; color: #fff; border-radius: 4px; cursor: pointer; }
+        </style>
+        <form method="dialog">
+          <h2>Étalonnage de l'échelle</h2>
+          <p data-hint></p>
+          <label>
             Distance réelle de la cote tracée (en mètres) :
-            <input type="number" min="0" step="any" required style="padding:6px 8px;border:1px solid #999;border-radius:4px;font:inherit;" />
+            <input type="number" min="0" step="any" required />
           </label>
-          <div style="display:flex;justify-content:flex-end;gap:8px;">
-            <button type="button" data-action="cancel" style="padding:6px 12px;border:1px solid #999;background:#f5f5f5;border-radius:4px;cursor:pointer;">Annuler</button>
-            <button type="submit" data-action="ok" style="padding:6px 12px;border:1px solid #0a558c;background:#0a558c;color:#fff;border-radius:4px;cursor:pointer;">Valider</button>
+          <div class="pdfjsMeasureBtns">
+            <button type="button" data-action="cancel">Annuler</button>
+            <button type="submit" data-action="ok">Valider</button>
           </div>
         </form>
       `;
@@ -1157,8 +1170,14 @@ class MeasureEditor extends DrawingEditor {
     return AnnotationEditorParamsType.MEASURE_COLOR;
   }
 
-  get colorValue() {
+  // BasicColorPicker lit `color`/`opacity` sur l'éditeur (comme InkEditor) pour
+  // initialiser l'input à la couleur active de la mesure (et non au noir).
+  get color() {
     return this._drawingOptions.stroke;
+  }
+
+  get opacity() {
+    return this._drawingOptions["stroke-opacity"];
   }
 
   /**

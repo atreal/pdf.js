@@ -962,7 +962,7 @@ class AnnotationEditorUIManager {
     // lands first. Without it, an in-progress polyline/area session
     // (vertices placed but not yet double-clicked) is lost from the print
     // output because no MeasureEditor exists yet to be serialized.
-    eventBus._on("beforeprint", () => this.commitOrRemove(), { signal });
+    eventBus.on("beforeprint", () => this.commitOrRemove(), { signal });
     window.addEventListener(
       "pointerdown",
       () => {

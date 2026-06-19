@@ -255,6 +255,14 @@ class AnnotationEditor {
       ink: "pdfjs-editor-ink-added-alert",
       stamp: "pdfjs-editor-stamp-added-alert",
       signature: "pdfjs-editor-signature-added-alert",
+      // editorType de la mesure = `measure-<sous-type>` (cf. MeasureEditor) ;
+      // toutes les variantes partagent la même annonce a11y.
+      measure: "pdfjs-editor-measure-added-alert",
+      "measure-distance": "pdfjs-editor-measure-added-alert",
+      "measure-area": "pdfjs-editor-measure-added-alert",
+      "measure-polyline": "pdfjs-editor-measure-added-alert",
+      "measure-perpendicular": "pdfjs-editor-measure-added-alert",
+      "measure-calibrate": "pdfjs-editor-measure-added-alert",
     });
 
     AnnotationEditor._l10nResizer ??= Object.freeze({

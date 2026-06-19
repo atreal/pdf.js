@@ -43,6 +43,13 @@ class EditorToolbar {
       ink: "pdfjs-editor-remove-ink-button",
       stamp: "pdfjs-editor-remove-stamp-button",
       signature: "pdfjs-editor-remove-signature-button",
+      // editorType de la mesure = `measure-<sous-type>` ; un seul libellé.
+      measure: "pdfjs-editor-remove-measure-button",
+      "measure-distance": "pdfjs-editor-remove-measure-button",
+      "measure-area": "pdfjs-editor-remove-measure-button",
+      "measure-polyline": "pdfjs-editor-remove-measure-button",
+      "measure-perpendicular": "pdfjs-editor-remove-measure-button",
+      "measure-calibrate": "pdfjs-editor-remove-measure-button",
     });
   }
 

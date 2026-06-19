@@ -410,7 +410,7 @@ class Toolbar {
     // user double-clicks an existing perpendicular measure to re-edit
     // it — we want the Perpendicular button to switch to the toggled
     // state to mirror the editor's mode).
-    eventBus._on("annotationeditorparamschanged", evt => {
+    eventBus.on("annotationeditorparamschanged", evt => {
       for (const [type, value] of evt.details) {
         if (type === Toolbar.#MEASURE_SUBTYPE_PARAMS) {
           this.#activeMeasureSubType = value;
