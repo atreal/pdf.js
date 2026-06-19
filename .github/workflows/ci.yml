@@ -53,6 +53,10 @@ jobs:
           enableCrossOsArchive: true
 
       - name: Upload results to Codecov
+        # Étape non bloquante sur le fork atreal : pas de token Codecov et la
+        # vérification GPG du CLI Codecov échoue. La couverture n'est pas un
+        # critère de CI ici, on ne fait pas échouer le job pour cet upload.
+        continue-on-error: true
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
