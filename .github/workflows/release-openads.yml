@@ -1,15 +1,19 @@
 name: Release pdfjs-openads
 
 # Build the generic viewer and publish a GitHub Release with the
-# downloadable bundle when a `pdfjs-openads-*` tag is pushed. Also
-# runnable manually from the Actions tab to rebuild a release.
+# downloadable bundle when a release tag is pushed. The current scheme is
+# `<version pdf.js officielle>-arNN` (ex. `v6.0.227-ar01`) ; l'ancien schéma
+# `pdfjs-openads-*` reste accepté pour reconstruire les anciennes releases.
+# Aussi déclenchable manuellement depuis l'onglet Actions.
 on:
   push:
-    tags: ['pdfjs-openads-*']
+    tags:
+      - 'v*-ar*'
+      - 'pdfjs-openads-*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing pdfjs-openads-* tag to (re)build'
+        description: 'Tag existant à (re)builder (ex. v6.0.227-ar01)'
         required: true
         type: string
 
