@@ -118,6 +118,12 @@ function initOpenadsBridge(app) {
   // Listen to messages from the parent window.
   window.addEventListener("message", _handleParentMessage);
 
+  // Expose the unsaved-changes check synchronously to the (same-origin) parent
+  // so it can implement a `beforeunload` guard (F5 / tab close / navigation).
+  // postMessage is async and unusable in a beforeunload handler; a direct call
+  // reuses the exact same dirty definition as the close button.
+  window.openadsHasUnsavedModifications = _hasUnsavedModifications;
+
   // Publish electronic-signature metadata (if any) once the document is
   // ready. Signatures are *informational* — no crypto verification is
   // performed here.
