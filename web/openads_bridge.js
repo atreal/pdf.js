@@ -67,6 +67,12 @@ function applyOpenadsAppOptions() {
     return;
   }
   AppOptions.set("disablePreferences", true);
+  // Désactiver l'outil natif « Ouvrir un fichier » (bouton #secondaryOpenFile)
+  // dans les deux modes : il rouvrirait un autre PDF dans l'iframe sans avertir
+  // de la perte de la saisie en cours. Aucune AppOption ne gouverne ce bouton
+  // (présent uniquement via le build GENERIC) ; on masque l'élément du DOM avec
+  // la classe standard `.hidden` (display:none !important).
+  document.getElementById("secondaryOpenFile")?.classList.add("hidden");
   const mode = params.get("mode") === "annotate" ? "annotate" : "preview";
   if (mode === "preview") {
     AppOptions.set("annotationEditorMode", -1); // AnnotationEditorType.DISABLE
@@ -92,9 +98,13 @@ const openadsMode = urlParams.get("openads") === "1" || isInIframe;
 const documentId = urlParams.get("docId") || "";
 
 let _app = null;
-// Number of annotationStorage entries at the last successful save.
-// null = never saved yet.
-let _savedSize = null;
+// Empreinte du contenu sérialisé des annotations à la dernière sauvegarde
+// réussie (annotationStorage.serializable.hash ; "" quand vide). null = jamais
+// sauvegardé. Le hash est stable pour un même contenu, contrairement à
+// annotationStorage.size qu'un saveDocument()/re-render peut faire varier après
+// capture, ce qui provoquait une alerte "modifications non sauvegardées" au F5
+// alors qu'on venait d'enregistrer.
+let _savedHash = null;
 
 /**
  * Initialize the bridge. Call once after PDFViewerApplication is initialized.
@@ -208,15 +218,18 @@ async function _saveToOpenads() {
 }
 
 function _hasUnsavedModifications() {
-  const size = _app?.pdfDocument?.annotationStorage?.size ?? 0;
-  if (_savedSize === null) {
-    return size > 0;
+  const hash = _app?.pdfDocument?.annotationStorage?.serializable?.hash ?? "";
+  if (_savedHash === null) {
+    // Jamais sauvegardé : modifié dès qu'il existe au moins une annotation
+    // (hash = "" quand le storage est vide).
+    return hash !== "";
   }
-  return size !== _savedSize;
+  return hash !== _savedHash;
 }
 
 function _markAsSaved() {
-  _savedSize = _app?.pdfDocument?.annotationStorage?.size ?? 0;
+  _savedHash =
+    _app?.pdfDocument?.annotationStorage?.serializable?.hash ?? "";
   _app?.pdfDocument?.annotationStorage?.resetModified();
 }
 
@@ -244,7 +257,7 @@ function _handleParentMessage(event) {
       }
       break;
     case "openads-pdf-load":
-      _savedSize = null;
+      _savedHash = null;
       if (msg.userLogin) {
         window._openadsUserLogin = msg.userLogin;
       }
