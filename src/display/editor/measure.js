@@ -777,6 +777,12 @@ class MeasureEditor extends DrawingEditor {
 
   static _defaultDrawingOptions = null;
 
+  // Defaults couleur/épaisseur/opacité isolés PAR sous-outil de mesure.
+  // Map<subtype, MeasureDrawingOptions>. `_defaultDrawingOptions` ci-dessus
+  // reste le pointeur vers le sac du sous-outil ACTIF (lu par tout le socle :
+  // getDefaultDrawingOptions, DrawingEditor.updateDefaultParams, etc.).
+  static _subTypeDrawingOptions = null;
+
   static _defaultMeasureSubType = MeasureSubType.DISTANCE;
 
   static _defaultScaleFactor = 1;
@@ -830,8 +836,20 @@ class MeasureEditor extends DrawingEditor {
   /** @inheritdoc */
   static initialize(l10n, uiManager) {
     AnnotationEditor.initialize(l10n, uiManager);
-    this._defaultDrawingOptions = new MeasureDrawingOptions(
-      uiManager.viewParameters
+    // Un jeu de defaults par sous-outil : changer la couleur/épaisseur/opacité
+    // de « distance » ne touche plus « surface », etc. Appelé une seule fois par
+    // session viewer (garde AnnotationEditorLayer._initialized), donc les
+    // réglages personnalisés persistent. `_defaultDrawingOptions` pointe sur le
+    // sac du sous-outil courant.
+    this._subTypeDrawingOptions = new Map();
+    for (const sub of Object.values(MeasureSubType)) {
+      this._subTypeDrawingOptions.set(
+        sub,
+        new MeasureDrawingOptions(uiManager.viewParameters)
+      );
+    }
+    this._defaultDrawingOptions = this._subTypeDrawingOptions.get(
+      this._defaultMeasureSubType
     );
   }
 
@@ -912,6 +930,12 @@ class MeasureEditor extends DrawingEditor {
   static updateDefaultParams(type, value) {
     if (type === AnnotationEditorParamsType.MEASURE_SUBTYPE) {
       this._defaultMeasureSubType = value;
+      // Active le sac de defaults propre au sous-outil sélectionné (couleur,
+      // épaisseur, opacité). value === null = mode sélection → on conserve le
+      // sac courant.
+      if (value && this._subTypeDrawingOptions?.has(value)) {
+        this._defaultDrawingOptions = this._subTypeDrawingOptions.get(value);
+      }
       return;
     }
     if (type === AnnotationEditorParamsType.MEASURE_UNIT) {

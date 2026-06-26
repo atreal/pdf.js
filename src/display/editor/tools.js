@@ -2228,6 +2228,13 @@ class AnnotationEditorUIManager {
       // distance.
       for (const editorType of this.#editorTypes) {
         editorType.updateDefaultParams(type, value);
+        // Rafraîchir les inputs couleur/épaisseur/opacité de la barre avec les
+        // valeurs propres au sous-outil fraîchement activé (isolation par
+        // outil). Limité à l'éditeur Measure pour ne pas écraser les inputs des
+        // autres éditeurs. value falsy = mode sélection → pas de refresh.
+        if (value && editorType._editorType === AnnotationEditorType.MEASURE) {
+          this.updateUIForDefaultProperties(editorType);
+        }
       }
       return;
     }
