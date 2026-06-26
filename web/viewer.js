@@ -96,6 +96,7 @@ function getViewerConfiguration() {
       editorMeasureScaleLabel: document.getElementById(
         "editorMeasureScaleLabel"
       ),
+      editorMeasureHint: document.getElementById("editorMeasureHint"),
       download: document.getElementById("downloadButton"),
     },
     secondaryToolbar: {

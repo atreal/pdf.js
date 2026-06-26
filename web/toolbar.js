@@ -164,6 +164,18 @@ class Toolbar {
     ["editorMeasureCalibrateButton", "calibrate"],
   ];
 
+  // Aide contextuelle affichée dans le panneau de l'outil de mesure :
+  // seule la consigne du sous-outil actif est montrée (cf. #updateMeasureButtonsVisual).
+  static #measureHints = {
+    distance: "Cliquez-glissez d'un point à l'autre.",
+    polyline: "Cliquez chaque sommet, double-cliquez pour terminer.",
+    area: "Cliquez chaque sommet, double-cliquez pour fermer le contour.",
+    perpendicular:
+      "Cliquez-glissez pour tracer la base, puis cliquez pour la distance perpendiculaire.",
+    calibrate:
+      "Cliquez-glissez sur une distance connue, puis saisissez sa valeur réelle.",
+  };
+
   #activeMeasureSubType = "distance";
 
   #bindMeasureToolButtons() {
@@ -206,6 +218,7 @@ class Toolbar {
       editorMeasurePerpendicularButton,
       editorMeasureCalibrateButton,
       editorMeasureParamsToolbar,
+      editorMeasureHint,
     } = this.#opts;
     const map = [
       [editorMeasureDistanceButton, "distance"],
@@ -258,6 +271,11 @@ class Toolbar {
     }
     if (editorMeasureParamsToolbar) {
       editorMeasureParamsToolbar.classList.toggle("hidden", !activeSubtype);
+    }
+    // N'afficher que la consigne du sous-outil actif (le panneau est masqué
+    // quand activeSubtype est null).
+    if (editorMeasureHint && activeSubtype) {
+      editorMeasureHint.textContent = Toolbar.#measureHints[activeSubtype] ?? "";
     }
   }
 

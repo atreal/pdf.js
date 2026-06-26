@@ -178,7 +178,7 @@ class AnnotationEditorParams {
       eventBus.on("measure-scale-calibrated", ({ ratioN }) => {
         editorMeasureScaleLabel.textContent = ratioN
           ? `Échelle : 1:${ratioN}`
-          : "Échelle : non calibrée";
+          : "Échelle : non étalonnée";
       });
     }
 
