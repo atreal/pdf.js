@@ -1858,7 +1858,7 @@ class AnnotationEditor {
    * @returns {Object | null}
    */
   serialize(isForCopying = false, context = null) {
-    return {
+    const serialized = {
       annotationType: this.mode,
       pageIndex: this.pageIndex,
       rect: this.getPDFRect(),
@@ -1866,6 +1866,17 @@ class AnnotationEditor {
       structTreeParentId: this._structTreeParentId,
       popupRef: this._initialData?.popupRef || "",
     };
+    // openADS : login du créateur (écrit dans /T par le worker) sur les
+    // annotations NEUVES seulement. Sur une annotation existante, `user` reste
+    // indéfini et le worker (setIfDefined) préserve l'auteur d'origine.
+    if (
+      !this.annotationElementId &&
+      typeof window !== "undefined" &&
+      window._openadsUserLogin
+    ) {
+      serialized.user = window._openadsUserLogin;
+    }
+    return serialized;
   }
 
   /**

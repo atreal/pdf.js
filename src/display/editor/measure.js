@@ -1059,6 +1059,7 @@ class MeasureEditor extends DrawingEditor {
         popupRef,
         contentsObj,
         subj,
+        titleObj,
       } = elementData;
       const pageNumber = data.parent?.page?.pageNumber || 1;
       const thickness = borderStyle?.rawWidth || 1;
@@ -1129,6 +1130,9 @@ class MeasureEditor extends DrawingEditor {
         deleted: false,
         popupRef,
         comment,
+        // Auteur d'origine (/T) conservé pour le préserver en ré-édition
+        // (openADS : ne pas écraser le créateur par le dernier éditeur).
+        user: titleObj?.str || null,
         // Annotations saved before the always-/Popup fix lack a /Popup ref.
         // We flag them so they get re-serialized on the next save, which
         // restores the popup that Firefox's bundled pdf.js needs.
@@ -1714,6 +1718,17 @@ class MeasureEditor extends DrawingEditor {
       }
     }
 
+    // openADS : login du créateur (écrit dans /T par le worker). Sur une
+    // mesure NEUVE, le login courant ; sur une mesure existante, l'auteur
+    // d'origine capté à la désérialisation, pour ne pas le remplacer par le
+    // dernier éditeur.
+    let openadsUser = null;
+    if (this.annotationElementId) {
+      openadsUser = this._initialData?.user || null;
+    } else if (typeof window !== "undefined") {
+      openadsUser = window._openadsUserLogin || null;
+    }
+
     const serialized = {
       annotationType: AnnotationEditorType.MEASURE,
       measureSubType: this.#measureSubType,
@@ -1722,6 +1737,7 @@ class MeasureEditor extends DrawingEditor {
       color: colorRgb,
       opacity,
       lineWidth: thickness,
+      user: openadsUser,
       unit: this.#unit,
       scaleFactor: this.#scaleFactor,
       label: measureLabel,
