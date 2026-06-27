@@ -1866,9 +1866,9 @@ class AnnotationEditor {
       structTreeParentId: this._structTreeParentId,
       popupRef: this._initialData?.popupRef || "",
     };
-    // openADS : login du créateur (écrit dans /T par le worker) sur les
-    // annotations NEUVES seulement. Sur une annotation existante, `user` reste
-    // indéfini et le worker (setIfDefined) préserve l'auteur d'origine.
+    // openADS author login (-> /T) on new annotations only. For an existing
+    // one, leave `user` undefined so the worker (setIfDefined) keeps the
+    // original author.
     if (
       !this.annotationElementId &&
       typeof window !== "undefined" &&

@@ -1130,8 +1130,7 @@ class MeasureEditor extends DrawingEditor {
         deleted: false,
         popupRef,
         comment,
-        // Auteur d'origine (/T) conservé pour le préserver en ré-édition
-        // (openADS : ne pas écraser le créateur par le dernier éditeur).
+        // Original /T author, kept so re-editing preserves the creator.
         user: titleObj?.str || null,
         // Annotations saved before the always-/Popup fix lack a /Popup ref.
         // We flag them so they get re-serialized on the next save, which
@@ -1718,17 +1717,6 @@ class MeasureEditor extends DrawingEditor {
       }
     }
 
-    // openADS : login du créateur (écrit dans /T par le worker). Sur une
-    // mesure NEUVE, le login courant ; sur une mesure existante, l'auteur
-    // d'origine capté à la désérialisation, pour ne pas le remplacer par le
-    // dernier éditeur.
-    let openadsUser = null;
-    if (this.annotationElementId) {
-      openadsUser = this._initialData?.user || null;
-    } else if (typeof window !== "undefined") {
-      openadsUser = window._openadsUserLogin || null;
-    }
-
     const serialized = {
       annotationType: AnnotationEditorType.MEASURE,
       measureSubType: this.#measureSubType,
@@ -1737,7 +1725,8 @@ class MeasureEditor extends DrawingEditor {
       color: colorRgb,
       opacity,
       lineWidth: thickness,
-      user: openadsUser,
+      // openADS author login, written to /T by the worker.
+      user: this.#openadsAuthor(),
       unit: this.#unit,
       scaleFactor: this.#scaleFactor,
       label: measureLabel,
@@ -1836,6 +1825,17 @@ class MeasureEditor extends DrawingEditor {
 
   #viewElement = null;
 
+  // openADS author login (-> /T, popup title). New: current login; existing:
+  // original author kept from deserialize so re-editing keeps the creator.
+  #openadsAuthor() {
+    if (this.annotationElementId) {
+      return this._initialData?.user || null;
+    }
+    return typeof window !== "undefined"
+      ? window._openadsUserLogin || null
+      : null;
+  }
+
   #buildViewElementData() {
     const verts = this.#currentVertices();
     if (!verts || verts.length < 4) {
@@ -1915,7 +1915,8 @@ class MeasureEditor extends DrawingEditor {
         verticalCornerRadius: 0,
       },
       contentsObj: { str: contents, dir: "ltr" },
-      titleObj: { str: subtypeTitle, dir: "ltr" },
+      // Popup title = author (login), matching /T; fall back to subtype label.
+      titleObj: { str: this.#openadsAuthor() || subtypeTitle, dir: "ltr" },
       subj: `pdfjs-measure-${this.#measureSubType}`,
       measure:
         this.#scaleFactor && this.#scaleFactor !== 1
@@ -1934,12 +1935,10 @@ class MeasureEditor extends DrawingEditor {
   }
 
   #showViewElement() {
-    // Saved measures already have a real PolylineAnnotationElement in the
-    // AnnotationLayer (created at PDF load) — that one handles popup-on-
-    // hover. Adding a synthetic on top would render a duplicate.
-    if (this.annotationElementId) {
-      return;
-    }
+    // While editing, AnnotationEditorLayer.enable() hides an existing measure's
+    // real annotation, so its /T popup is gone. Synthesize the view-only
+    // element (new and existing) to keep the hover popup. No duplicate: only
+    // reached in edit mode, where the real element is hidden.
     if (this.#viewElement) {
       this.#viewElement.show();
       return;
