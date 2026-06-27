@@ -588,6 +588,7 @@ describe("MeasureEditor", () => {
     // production fix should let MeasureEditor synthesize its own params or
     // the test should use a PDF that already has at least one native
     // annotation.
+    // eslint-disable-next-line jasmine/no-disabled-tests
     xit("dblclick on a synthetic measure re-enters edit mode", async () => {
       await Promise.all(
         pages.map(async ([_, page]) => {
