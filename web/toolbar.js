@@ -164,8 +164,8 @@ class Toolbar {
     ["editorMeasureCalibrateButton", "calibrate"],
   ];
 
-  // Aide contextuelle affichée dans le panneau de l'outil de mesure :
-  // seule la consigne du sous-outil actif est montrée (cf. #updateMeasureButtonsVisual).
+  // Aide contextuelle du panneau de mesure : seule la consigne du sous-outil
+  // actif est affichée (cf. #updateMeasureButtonsVisual).
   static #measureHints = {
     distance: "Cliquez-glissez d'un point à l'autre.",
     polyline: "Cliquez chaque sommet, double-cliquez pour terminer.",
@@ -275,7 +275,8 @@ class Toolbar {
     // N'afficher que la consigne du sous-outil actif (le panneau est masqué
     // quand activeSubtype est null).
     if (editorMeasureHint && activeSubtype) {
-      editorMeasureHint.textContent = Toolbar.#measureHints[activeSubtype] ?? "";
+      editorMeasureHint.textContent =
+        Toolbar.#measureHints[activeSubtype] ?? "";
     }
   }
 

@@ -837,10 +837,9 @@ class MeasureEditor extends DrawingEditor {
   static initialize(l10n, uiManager) {
     AnnotationEditor.initialize(l10n, uiManager);
     // Un jeu de defaults par sous-outil : changer la couleur/épaisseur/opacité
-    // de « distance » ne touche plus « surface », etc. Appelé une seule fois par
-    // session viewer (garde AnnotationEditorLayer._initialized), donc les
-    // réglages personnalisés persistent. `_defaultDrawingOptions` pointe sur le
-    // sac du sous-outil courant.
+    // de « distance » ne touche plus « surface », etc. Appelé une seule fois
+    // par session viewer (garde AnnotationEditorLayer._initialized), donc les
+    // réglages persistent. `_defaultDrawingOptions` pointe sur le sac actif.
     this._subTypeDrawingOptions = new Map();
     for (const sub of Object.values(MeasureSubType)) {
       this._subTypeDrawingOptions.set(

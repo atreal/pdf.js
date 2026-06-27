@@ -228,8 +228,7 @@ function _hasUnsavedModifications() {
 }
 
 function _markAsSaved() {
-  _savedHash =
-    _app?.pdfDocument?.annotationStorage?.serializable?.hash ?? "";
+  _savedHash = _app?.pdfDocument?.annotationStorage?.serializable?.hash ?? "";
   _app?.pdfDocument?.annotationStorage?.resetModified();
 }
 
