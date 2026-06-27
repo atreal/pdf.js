@@ -67,11 +67,9 @@ function applyOpenadsAppOptions() {
     return;
   }
   AppOptions.set("disablePreferences", true);
-  // Désactiver l'outil natif « Ouvrir un fichier » (bouton #secondaryOpenFile)
-  // dans les deux modes : il rouvrirait un autre PDF dans l'iframe sans avertir
-  // de la perte de la saisie en cours. Aucune AppOption ne gouverne ce bouton
-  // (présent uniquement via le build GENERIC) ; on masque l'élément du DOM avec
-  // la classe standard `.hidden` (display:none !important).
+  // Hide the native "Open file" button (#secondaryOpenFile) in both modes: it
+  // would reopen another PDF in the iframe, dropping the current edits. No
+  // AppOption governs it (GENERIC build only), so hide the DOM element.
   document.getElementById("secondaryOpenFile")?.classList.add("hidden");
   const mode = params.get("mode") === "annotate" ? "annotate" : "preview";
   if (mode === "preview") {
@@ -98,12 +96,11 @@ const openadsMode = urlParams.get("openads") === "1" || isInIframe;
 const documentId = urlParams.get("docId") || "";
 
 let _app = null;
-// Empreinte du contenu sérialisé des annotations à la dernière sauvegarde
-// réussie (annotationStorage.serializable.hash ; "" quand vide). null = jamais
-// sauvegardé. Le hash est stable pour un même contenu, contrairement à
-// annotationStorage.size qu'un saveDocument()/re-render peut faire varier après
-// capture, ce qui provoquait une alerte "modifications non sauvegardées" au F5
-// alors qu'on venait d'enregistrer.
+// Serialized-content hash at the last successful save
+// (annotationStorage.serializable.hash; "" when empty). null = never saved.
+// Stable for identical content, unlike annotationStorage.size, which a
+// saveDocument()/re-render can change after capture — that caused a spurious
+// "unsaved changes" prompt on F5 right after saving.
 let _savedHash = null;
 
 /**
@@ -220,8 +217,8 @@ async function _saveToOpenads() {
 function _hasUnsavedModifications() {
   const hash = _app?.pdfDocument?.annotationStorage?.serializable?.hash ?? "";
   if (_savedHash === null) {
-    // Jamais sauvegardé : modifié dès qu'il existe au moins une annotation
-    // (hash = "" quand le storage est vide).
+    // Never saved: modified as soon as there is any annotation
+    // (hash = "" when the storage is empty).
     return hash !== "";
   }
   return hash !== _savedHash;

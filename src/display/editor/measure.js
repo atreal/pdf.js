@@ -777,10 +777,10 @@ class MeasureEditor extends DrawingEditor {
 
   static _defaultDrawingOptions = null;
 
-  // Defaults couleur/épaisseur/opacité isolés PAR sous-outil de mesure.
-  // Map<subtype, MeasureDrawingOptions>. `_defaultDrawingOptions` ci-dessus
-  // reste le pointeur vers le sac du sous-outil ACTIF (lu par tout le socle :
-  // getDefaultDrawingOptions, DrawingEditor.updateDefaultParams, etc.).
+  // Per-subtype color/thickness/opacity defaults. Map<subtype,
+  // MeasureDrawingOptions>. `_defaultDrawingOptions` above stays the pointer to
+  // the ACTIVE subtype's bag (read by the whole base: getDefaultDrawingOptions,
+  // DrawingEditor.updateDefaultParams, etc.).
   static _subTypeDrawingOptions = null;
 
   static _defaultMeasureSubType = MeasureSubType.DISTANCE;
@@ -836,10 +836,10 @@ class MeasureEditor extends DrawingEditor {
   /** @inheritdoc */
   static initialize(l10n, uiManager) {
     AnnotationEditor.initialize(l10n, uiManager);
-    // Un jeu de defaults par sous-outil : changer la couleur/épaisseur/opacité
-    // de « distance » ne touche plus « surface », etc. Appelé une seule fois
-    // par session viewer (garde AnnotationEditorLayer._initialized), donc les
-    // réglages persistent. `_defaultDrawingOptions` pointe sur le sac actif.
+    // One defaults bag per subtype, so changing distance's
+    // color/thickness/opacity no longer affects surface, etc. Called once per
+    // viewer session (AnnotationEditorLayer._initialized guard), so the choices
+    // persist. `_defaultDrawingOptions` points at the active bag.
     this._subTypeDrawingOptions = new Map();
     for (const sub of Object.values(MeasureSubType)) {
       this._subTypeDrawingOptions.set(
@@ -929,9 +929,8 @@ class MeasureEditor extends DrawingEditor {
   static updateDefaultParams(type, value) {
     if (type === AnnotationEditorParamsType.MEASURE_SUBTYPE) {
       this._defaultMeasureSubType = value;
-      // Active le sac de defaults propre au sous-outil sélectionné (couleur,
-      // épaisseur, opacité). value === null = mode sélection → on conserve le
-      // sac courant.
+      // Switch to the selected subtype's own defaults bag. null = selection
+      // mode, keep the current bag.
       if (value && this._subTypeDrawingOptions?.has(value)) {
         this._defaultDrawingOptions = this._subTypeDrawingOptions.get(value);
       }

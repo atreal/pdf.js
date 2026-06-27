@@ -164,8 +164,8 @@ class Toolbar {
     ["editorMeasureCalibrateButton", "calibrate"],
   ];
 
-  // Aide contextuelle du panneau de mesure : seule la consigne du sous-outil
-  // actif est affichée (cf. #updateMeasureButtonsVisual).
+  // Measure tool hint: only the active subtype's instruction is shown
+  // (see #updateMeasureButtonsVisual).
   static #measureHints = {
     distance: "Cliquez-glissez d'un point à l'autre.",
     polyline: "Cliquez chaque sommet, double-cliquez pour terminer.",
@@ -272,8 +272,7 @@ class Toolbar {
     if (editorMeasureParamsToolbar) {
       editorMeasureParamsToolbar.classList.toggle("hidden", !activeSubtype);
     }
-    // N'afficher que la consigne du sous-outil actif (le panneau est masqué
-    // quand activeSubtype est null).
+    // Show only the active subtype's hint (panel is hidden when null).
     if (editorMeasureHint && activeSubtype) {
       editorMeasureHint.textContent =
         Toolbar.#measureHints[activeSubtype] ?? "";

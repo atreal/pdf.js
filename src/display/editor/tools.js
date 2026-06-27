@@ -2228,10 +2228,10 @@ class AnnotationEditorUIManager {
       // distance.
       for (const editorType of this.#editorTypes) {
         editorType.updateDefaultParams(type, value);
-        // Rafraîchir les inputs couleur/épaisseur/opacité de la barre avec les
-        // valeurs propres au sous-outil fraîchement activé (isolation par
-        // outil). Limité à l'éditeur Measure pour ne pas écraser les inputs des
-        // autres éditeurs. value falsy = mode sélection → pas de refresh.
+        // Refresh the color/thickness/opacity inputs with the newly active
+        // subtype's own values (per-tool isolation). Measure editor only, so
+        // other editors' inputs aren't overwritten. Falsy value = selection
+        // mode, no refresh.
         if (value && editorType._editorType === AnnotationEditorType.MEASURE) {
           this.updateUIForDefaultProperties(editorType);
         }
