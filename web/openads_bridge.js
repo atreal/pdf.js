@@ -78,6 +78,9 @@ function applyOpenadsAppOptions() {
     AppOptions.set("enableComment", false);
     AppOptions.set("enableHighlightFloatingButton", false);
     AppOptions.set("enableSignatureEditor", false);
+    // Read-only: no page management in the thumbnails view.
+    AppOptions.set("enableMerge", false);
+    AppOptions.set("enableSplitMerge", false);
   } else {
     AppOptions.set("annotationEditorMode", 0); // AnnotationEditorType.NONE (toolbar visible, aucun éditeur actif par défaut)
     AppOptions.set("enableMeasureEditor", true);
@@ -87,6 +90,9 @@ function applyOpenadsAppOptions() {
     AppOptions.set("enableAltText", true);
     AppOptions.set("enableAutoLinking", true);
     AppOptions.set("enableGuessAltText", true);
+    // Page management in the thumbnails view (reorder, split, merge, import).
+    AppOptions.set("enableMerge", true);
+    AppOptions.set("enableSplitMerge", true);
   }
 }
 
