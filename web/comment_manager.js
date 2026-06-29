@@ -50,6 +50,7 @@ class CommentManager {
   ) {
     const dateFormat = new Intl.DateTimeFormat(undefined, {
       dateStyle: "long",
+      timeStyle: "short",
     });
     this.dialogElement = commentDialog.dialog;
     this.#dialog = new CommentDialog(
@@ -878,6 +879,8 @@ class CommentPopup {
 
   #time = null;
 
+  #author = null;
+
   #prevDragX = 0;
 
   #prevDragY = 0;
@@ -936,6 +939,8 @@ class CommentPopup {
 
     const top = document.createElement("div");
     top.className = "commentPopupTop";
+    const author = (this.#author = document.createElement("span"));
+    author.className = "commentPopupAuthor";
     const time = (this.#time = document.createElement("time"));
     time.className = "commentPopupTime";
 
@@ -999,7 +1004,7 @@ class CommentPopup {
     del.addEventListener("contextmenu", noContextMenu);
     buttons.append(edit, del);
 
-    top.append(time, buttons);
+    top.append(author, time, buttons);
 
     const separator = document.createElement("hr");
 
@@ -1137,6 +1142,7 @@ class CommentPopup {
       modificationDate,
       color,
       opacity,
+      user,
     } = editor.getData();
     container.style.backgroundColor =
       (color && CommentManager._makeCommentColor(color, opacity)) || "";
@@ -1158,6 +1164,8 @@ class CommentPopup {
     this.#time.textContent = this.#dateFormat.format(
       PDFDateString.toDateObject(modificationDate || creationDate)
     );
+    this.#author.textContent = user || "";
+    this.#author.hidden = !user;
     this.#setPosition(
       ...editor.commentPopupPosition,
       /* correctPosition = */ editor.hasDefaultPopupPosition()
@@ -1210,7 +1218,7 @@ class CommentPopup {
   destroy() {
     this._hide();
     this.#container?.remove();
-    this.#container = this.#text = this.#time = null;
+    this.#container = this.#text = this.#time = this.#author = null;
     this.#prevDragX = this.#prevDragY = Infinity;
     this.#posX = this.#posY = 0;
     this.#previousFocusedElement = null;

@@ -769,16 +769,23 @@ class AnnotationEditorLayer {
     // MeasureEditor by inspection — they arrive as PolylineAnnotationElement
     // instances and don't carry an annotationType field yet.
     const fromAnnotElt = data?.data;
+    let editor;
     if (fromAnnotElt?.isMeasure || data?.isMeasure) {
-      return (
-        (await MeasureEditor.deserialize(data, this, this.#uiManager)) || null
-      );
+      editor =
+        (await MeasureEditor.deserialize(data, this, this.#uiManager)) || null;
+    } else {
+      editor =
+        (await AnnotationEditorLayer.#editorTypes
+          .get(data.annotationType ?? data.annotationEditorType)
+          ?.deserialize(data, this, this.#uiManager)) || null;
     }
-    return (
-      (await AnnotationEditorLayer.#editorTypes
-        .get(data.annotationType ?? data.annotationEditorType)
-        ?.deserialize(data, this, this.#uiManager)) || null
-    );
+    // Keep the annotation's original /T author on the editor (in
+    // _initialData.user) so it stays available while editing, when the native
+    // popup is hidden.
+    if (editor?.annotationElementId && editor._initialData) {
+      editor._initialData.user ??= fromAnnotElt?.titleObj?.str || null;
+    }
+    return editor;
   }
 
   /**

@@ -1724,8 +1724,8 @@ class MeasureEditor extends DrawingEditor {
       color: colorRgb,
       opacity,
       lineWidth: thickness,
-      // openADS author login, written to /T by the worker.
-      user: this.#openadsAuthor(),
+      // Author, written to /T by the worker.
+      user: this._annotationAuthor(),
       unit: this.#unit,
       scaleFactor: this.#scaleFactor,
       label: measureLabel,
@@ -1824,17 +1824,6 @@ class MeasureEditor extends DrawingEditor {
 
   #viewElement = null;
 
-  // openADS author login (-> /T, popup title). New: current login; existing:
-  // original author kept from deserialize so re-editing keeps the creator.
-  #openadsAuthor() {
-    if (this.annotationElementId) {
-      return this._initialData?.user || null;
-    }
-    return typeof window !== "undefined"
-      ? window._openadsUserLogin || null
-      : null;
-  }
-
   #buildViewElementData() {
     const verts = this.#currentVertices();
     if (!verts || verts.length < 4) {
@@ -1915,7 +1904,7 @@ class MeasureEditor extends DrawingEditor {
       },
       contentsObj: { str: contents, dir: "ltr" },
       // Popup title = author (login), matching /T; fall back to subtype label.
-      titleObj: { str: this.#openadsAuthor() || subtypeTitle, dir: "ltr" },
+      titleObj: { str: this._annotationAuthor() || subtypeTitle, dir: "ltr" },
       subj: `pdfjs-measure-${this.#measureSubType}`,
       measure:
         this.#scaleFactor && this.#scaleFactor !== 1

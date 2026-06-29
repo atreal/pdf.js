@@ -552,6 +552,18 @@
     cursor: move;
     user-select: none;
 
+    .commentPopupAuthor {
+      font: menu;
+      font-weight: 700;
+      line-height: normal;
+      font-size: 13px;
+      margin-inline-end: 6px;
+
+      &[hidden] {
+        display: none;
+      }
+    }
+
     .commentPopupTime {
       font: menu;
       font-style: normal;
@@ -559,6 +571,7 @@
       line-height: normal;
       font-size: 13px;
       color: var(--comment-date-fg-color);
+      margin-inline-end: auto;
     }
 
     .commentPopupButtons {

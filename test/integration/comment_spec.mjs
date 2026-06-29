@@ -1267,4 +1267,57 @@ describe("Comment", () => {
       );
     });
   });
+
+  describe("Author shown in the comment popup", () => {
+    let pages;
+
+    beforeEach(async () => {
+      pages = await loadAndWait(
+        "tracemonkey.pdf",
+        ".annotationEditorLayer",
+        "page-fit",
+        null,
+        { enableComment: true }
+      );
+    });
+
+    afterEach(async () => {
+      await closePages(pages);
+    });
+
+    it("must show the author and a date in the comment popup", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          const author = "Jane Tester";
+          await page.evaluate(name => {
+            window.pdfjsAnnotationAuthor = name;
+          }, author);
+
+          await switchToHighlight(page);
+          await highlightSpan(page, 1, "Abstract");
+          const editorSelector = getEditorSelector(0);
+          await editComment(page, editorSelector, "A comment");
+
+          await waitAndClick(
+            page,
+            `${editorSelector} .annotationCommentButton`
+          );
+          await page.waitForSelector("#commentPopup", { visible: true });
+
+          const popupAuthor = await page.evaluate(
+            () =>
+              document.querySelector("#commentPopup .commentPopupAuthor")
+                ?.textContent
+          );
+          const popupTime = await page.evaluate(
+            () =>
+              document.querySelector("#commentPopup .commentPopupTime")
+                ?.textContent
+          );
+          expect(popupAuthor).withContext(`In ${browserName}`).toEqual(author);
+          expect(popupTime).withContext(`In ${browserName}`).toBeTruthy();
+        })
+      );
+    });
+  });
 });

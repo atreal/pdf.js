@@ -1387,6 +1387,18 @@ class AnnotationEditor {
     return div;
   }
 
+  // Author of the annotation, surfaced in the comment popup: a reloaded
+  // annotation -> its original /T (kept in _initialData.user); a new annotation
+  // -> the configured author.
+  _annotationAuthor() {
+    if (this.annotationElementId) {
+      return this._initialData?.user || null;
+    }
+    return (
+      (typeof window !== "undefined" && window.pdfjsAnnotationAuthor) || null
+    );
+  }
+
   #touchPinchStartCallback() {
     this.#savedDimensions = {
       savedX: this.x,
@@ -1727,6 +1739,7 @@ class AnnotationEditor {
       popupRef: !deleted,
       color,
       opacity,
+      user: this._annotationAuthor(),
     };
   }
 
@@ -1866,15 +1879,14 @@ class AnnotationEditor {
       structTreeParentId: this._structTreeParentId,
       popupRef: this._initialData?.popupRef || "",
     };
-    // openADS author login (-> /T) on new annotations only. For an existing
-    // one, leave `user` undefined so the worker (setIfDefined) keeps the
-    // original author.
+    // Stamp the configured author (-> /T) on new annotations only. For an
+    // existing one, leave `user` undefined so the worker keeps the original /T.
     if (
       !this.annotationElementId &&
       typeof window !== "undefined" &&
-      window._openadsUserLogin
+      window.pdfjsAnnotationAuthor
     ) {
-      serialized.user = window._openadsUserLogin;
+      serialized.user = window.pdfjsAnnotationAuthor;
     }
     return serialized;
   }

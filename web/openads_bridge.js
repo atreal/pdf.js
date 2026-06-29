@@ -115,11 +115,11 @@ function initOpenadsBridge(app) {
     return;
   }
 
-  // Make the user login available to MeasureEditor (used as the /T author).
-  window._openadsUserLogin =
+  // Expose the author for new annotations; the editors read it as the /T value.
+  window.pdfjsAnnotationAuthor =
     urlParams.get("userLogin") ||
     urlParams.get("user") ||
-    window._openadsUserLogin ||
+    window.pdfjsAnnotationAuthor ||
     "";
 
   // Listen to messages from the parent window.
@@ -255,7 +255,7 @@ function _handleParentMessage(event) {
     case "openads-pdf-load":
       _savedHash = null;
       if (msg.userLogin) {
-        window._openadsUserLogin = msg.userLogin;
+        window.pdfjsAnnotationAuthor = msg.userLogin;
       }
       if (msg.documentId) {
         window._openadsDocId = msg.documentId;

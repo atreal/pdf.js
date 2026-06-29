@@ -2683,6 +2683,7 @@ class PopupElement {
       opacity,
       creationDate,
       modificationDate,
+      user: this.#firstElement.data?.titleObj?.str || null,
     };
   }
 
