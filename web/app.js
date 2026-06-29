@@ -517,13 +517,11 @@ const PDFViewerApplication = {
           )
         : null;
 
-    // In read-only mode (annotationEditorMode === DISABLE) the CommentManager
-    // (comment editing UI) is not created: existing comments then render as
-    // read-only native popups; it stays active in editing modes.
+    // The CommentManager is created in both editing and read-only modes. In
+    // read-only mode (DISABLE) it receives readOnly so comments are shown
+    // without editing controls (see CommentManager).
     const commentManager =
-      AppOptions.get("enableComment") &&
-      appConfig.editCommentDialog &&
-      annotationEditorMode !== AnnotationEditorType.DISABLE
+      AppOptions.get("enableComment") && appConfig.editCommentDialog
         ? new CommentManager(
             appConfig.editCommentDialog,
             {
@@ -553,7 +551,9 @@ const PDFViewerApplication = {
             overlayManager,
             /* ltr = */ l10n.getDirection() === "ltr",
             hasForcedColors,
-            abortSignal
+            abortSignal,
+            /* readOnly = */ annotationEditorMode ===
+              AnnotationEditorType.DISABLE
           )
         : null;
 

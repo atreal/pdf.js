@@ -3350,12 +3350,8 @@ class PolylineAnnotationElement extends AnnotationElement {
     this.container.append(svg);
 
     // Create the popup ourselves so that we can bind it to the polyline
-    // instead of to the entire container (which is the default). In read-only
-    // mode (no CommentManager) we do this even when a /Popup ref exists, else
-    // the comment is unreachable; in editing mode with a /Popup ref the
-    // CommentManager owns it (avoids a double popup).
-    const hasCommentManager = !!this.parent?._commentManager;
-    if ((!popupRef || !hasCommentManager) && this.hasPopupData) {
+    // instead of to the entire container (which is the default).
+    if (!popupRef && this.hasPopupData) {
       this.hasOwnCommentButton = true;
       this._createPopup();
     }

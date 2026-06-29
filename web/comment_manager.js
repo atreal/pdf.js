@@ -36,6 +36,8 @@ class CommentManager {
 
   #sidebar;
 
+  #readOnly = false;
+
   static #hasForcedColors = null;
 
   constructor(
@@ -46,8 +48,10 @@ class CommentManager {
     overlayManager,
     ltr,
     hasForcedColors,
-    globalAbortSignal
+    globalAbortSignal,
+    readOnly = false
   ) {
+    this.#readOnly = readOnly;
     const dateFormat = new Intl.DateTimeFormat(undefined, {
       dateStyle: "long",
       timeStyle: "short",
@@ -110,7 +114,13 @@ class CommentManager {
     if (isSelected) {
       this.selectComment(editor.uid);
     }
-    this.#popup.toggle(editor, isSelected, visibility, isEditable);
+    // Read-only mode: never expose the popup editing controls.
+    this.#popup.toggle(
+      editor,
+      isSelected,
+      visibility,
+      this.#readOnly ? false : isEditable
+    );
   }
 
   destroyPopup() {
@@ -122,6 +132,10 @@ class CommentManager {
   }
 
   showDialog(uiManager, editor, posX, posY, options) {
+    // Read-only mode: no comment editing dialog.
+    if (this.#readOnly) {
+      return undefined;
+    }
     return this.#dialog.open(uiManager, editor, posX, posY, options);
   }
 
