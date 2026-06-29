@@ -75,7 +75,10 @@ function applyOpenadsAppOptions() {
   if (mode === "preview") {
     AppOptions.set("annotationEditorMode", -1); // AnnotationEditorType.DISABLE
     AppOptions.set("enableMeasureEditor", false);
-    AppOptions.set("enableComment", false);
+    // Comments shown read-only in preview: the annotation layer renders the
+    // existing comments, while the CommentManager (editing) is not created in
+    // DISABLE mode (cf. app.js), so they appear as read-only native popups.
+    AppOptions.set("enableComment", true);
     AppOptions.set("enableHighlightFloatingButton", false);
     AppOptions.set("enableSignatureEditor", false);
   } else {
