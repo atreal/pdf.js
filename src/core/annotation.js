@@ -4860,10 +4860,20 @@ class PolylineAnnotation extends MarkupAnnotation {
     // /Contents combines the measure label and the user comment so a viewer
     // showing the popup (Firefox, Adobe…) sees both. The "\n———\n" separator
     // is a stable round-trip marker that's also readable as a horizontal rule.
-    const userComment =
+    let userComment =
       annotation.popup && !annotation.popup.deleted
         ? annotation.popup.contents
         : null;
+    // Idempotent combine: the comment may already carry a previously combined
+    // "label\n———\n" prefix (e.g. re-saved without a reload). Keep only the
+    // text after the last separator before prepending the recomputed label.
+    if (userComment) {
+      const sep = "\n———\n";
+      const lastSep = userComment.lastIndexOf(sep);
+      if (lastSep !== -1) {
+        userComment = userComment.slice(lastSep + sep.length);
+      }
+    }
     let contents = "";
     if (label && userComment) {
       contents = `${label}\n———\n${userComment}`;

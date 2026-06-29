@@ -1103,7 +1103,9 @@ class MeasureEditor extends DrawingEditor {
       let comment = null;
       if (rawContents) {
         const sep = "\n———\n";
-        const idx = rawContents.indexOf(sep);
+        // lastIndexOf so accumulated "label ——— label ———" prefixes from
+        // earlier double-combine saves collapse to the user comment only.
+        const idx = rawContents.lastIndexOf(sep);
         if (idx !== -1) {
           comment = rawContents.slice(idx + sep.length);
         } else if (!/^[\d.,]+\s+[a-z]+²?$/i.test(rawContents.trim())) {
