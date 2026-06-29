@@ -4221,10 +4221,12 @@ class FreeTextAnnotation extends MarkupAnnotation {
     const freetext = oldAnnotation || new Dict(xref);
     freetext.setIfNotExists("Type", Name.get("Annot"));
     freetext.setIfNotExists("Subtype", Name.get("FreeText"));
-    freetext.set(
-      oldAnnotation ? "M" : "CreationDate",
-      `D:${getModificationDate(date)}`
-    );
+    const pdfDate = `D:${getModificationDate(date)}`;
+    freetext.set(oldAnnotation ? "M" : "CreationDate", pdfDate);
+    if (!oldAnnotation) {
+      // Set /M at creation too so viewers that key off /M show a date.
+      freetext.set("M", pdfDate);
+    }
     if (oldAnnotation) {
       // TODO: We should try to generate a new RC from the content we've.
       // For now we can just remove it to avoid any issues.
@@ -5382,10 +5384,12 @@ class InkAnnotation extends MarkupAnnotation {
     const ink = oldAnnotation || new Dict(xref);
     ink.setIfNotExists("Type", Name.get("Annot"));
     ink.setIfNotExists("Subtype", Name.get("Ink"));
-    ink.set(
-      oldAnnotation ? "M" : "CreationDate",
-      `D:${getModificationDate(date)}`
-    );
+    const pdfDate = `D:${getModificationDate(date)}`;
+    ink.set(oldAnnotation ? "M" : "CreationDate", pdfDate);
+    if (!oldAnnotation) {
+      // Set /M at creation too so viewers that key off /M show a date.
+      ink.set("M", pdfDate);
+    }
     ink.setIfArray("Rect", rect);
     ink.setIfArray("InkList", outlines?.points || paths?.points);
     ink.setIfNotExists("F", 4);
@@ -5624,10 +5628,12 @@ class HighlightAnnotation extends MarkupAnnotation {
     const highlight = oldAnnotation || new Dict(xref);
     highlight.setIfNotExists("Type", Name.get("Annot"));
     highlight.setIfNotExists("Subtype", Name.get("Highlight"));
-    highlight.set(
-      oldAnnotation ? "M" : "CreationDate",
-      `D:${getModificationDate(date)}`
-    );
+    const pdfDate = `D:${getModificationDate(date)}`;
+    highlight.set(oldAnnotation ? "M" : "CreationDate", pdfDate);
+    if (!oldAnnotation) {
+      // Set /M at creation too so viewers that key off /M show a date.
+      highlight.set("M", pdfDate);
+    }
     highlight.setIfArray("Rect", rect);
     highlight.setIfNotExists("F", 4);
     highlight.setIfNotExists("Border", [0, 0, 0]);
@@ -5861,10 +5867,12 @@ class StampAnnotation extends MarkupAnnotation {
     const stamp = oldAnnotation || new Dict(xref);
     stamp.setIfNotExists("Type", Name.get("Annot"));
     stamp.setIfNotExists("Subtype", Name.get("Stamp"));
-    stamp.set(
-      oldAnnotation ? "M" : "CreationDate",
-      `D:${getModificationDate(date)}`
-    );
+    const pdfDate = `D:${getModificationDate(date)}`;
+    stamp.set(oldAnnotation ? "M" : "CreationDate", pdfDate);
+    if (!oldAnnotation) {
+      // Set /M at creation too so viewers that key off /M show a date.
+      stamp.set("M", pdfDate);
+    }
     stamp.setIfArray("Rect", rect);
     stamp.setIfNotExists("F", 4);
     stamp.setIfNotExists("Border", [0, 0, 0]);

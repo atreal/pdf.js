@@ -4366,10 +4366,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[1].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[1].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "2 0 obj\n" +
-          "<< /Type /Annot /Subtype /FreeText /CreationDate (date) " +
+          "<< /Type /Annot /Subtype /FreeText /CreationDate (date) /M (date) " +
           "/Rect [12 34 56 78] /DA (/Helv 10 Tf 0 g) /Contents (Hello PDF.js World!) " +
           "/F 4 /Border [0 0 0] /Rotate 0 /AP << /N 3 0 R>>>>\n" +
           "endobj\n"
@@ -4648,10 +4648,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
-          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /Rect [12 34 56 78] " +
+          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
           "/InkList [[1 2 3 4 5 6 7 8] [91 92 93 94 95 96 97 98]] /F 4 " +
           "/Rotate 0 /BS << /W 1>> /C [0 0 0] /CA 1 /AP << /N 2 0 R>>>>\n" +
           "endobj\n"
@@ -4746,10 +4746,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
-          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /Rect [12 34 56 78] " +
+          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
           "/InkList [[1 2 3 4 5 6 7 8] [91 92 93 94 95 96 97 98]] /F 4 " +
           "/Rotate 0 /BS << /W 1>> /C [0 0 0] /CA 0.12 /AP << /N 2 0 R>>>>\n" +
           "endobj\n"
@@ -4935,10 +4935,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
-          "<< /Type /Annot /Subtype /Highlight /CreationDate (date) /Rect [12 34 56 78] " +
+          "<< /Type /Annot /Subtype /Highlight /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
           "/F 4 /Border [0 0 0] /Rotate 0 /QuadPoints [1 2 3 4 5 6 7] /C [0 0 0] " +
           "/CA 1 /AP << /N 2 0 R>>>>\n" +
           "endobj\n"
@@ -5043,10 +5043,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
-          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /Rect [12 34 56 78] " +
+          "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
           "/InkList [[16 17 18 19]] /F 4 /Rotate 0 /IT /InkHighlight /BS << /W 3.14>> " +
           "/C [0 0 0] /CA 1 /AP << /N 2 0 R>>>>\n" +
           "endobj\n"
@@ -5390,10 +5390,10 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/, "(date)");
+      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
-          "<< /Type /Annot /Subtype /Stamp /CreationDate (date) /Rect [12 34 56 78] " +
+          "<< /Type /Annot /Subtype /Stamp /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
           "/F 4 /Border [0 0 0] " +
           "/Rotate 0 /AP << /N 2 0 R>>>>\n" +
           "endobj\n"
