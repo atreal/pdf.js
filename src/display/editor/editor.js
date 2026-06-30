@@ -1250,6 +1250,10 @@ class AnnotationEditor {
     } else {
       this.#comment.data = value;
     }
+    // The comment changed: mark the editor modified so saveDocument
+    // re-serializes it. An existing (loaded) annotation is otherwise absent
+    // from the annotation storage and its edited comment would be dropped.
+    this.addToAnnotationStorage();
     if (this.hasComment) {
       this.removeCommentButtonFromToolbar();
       this.addStandaloneCommentButton();
