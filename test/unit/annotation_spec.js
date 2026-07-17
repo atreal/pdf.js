@@ -4366,7 +4366,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[1].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[1].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "2 0 obj\n" +
           "<< /Type /Annot /Subtype /FreeText /CreationDate (date) /M (date) " +
@@ -4648,7 +4648,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[0].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
           "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
@@ -4746,7 +4746,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[0].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
           "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
@@ -4935,7 +4935,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[0].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
           "<< /Type /Annot /Subtype /Highlight /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
@@ -5043,7 +5043,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[0].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
           "<< /Type /Annot /Subtype /Ink /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
@@ -5390,7 +5390,7 @@ describe("annotation", function () {
       );
       const data = await writeChanges(changes, xref);
 
-      const base = data[0].data.replace(/\(D:\d+\)/g, "(date)");
+      const base = data[0].data.replaceAll(/\(D:\d+\)/g, "(date)");
       expect(base).toEqual(
         "1 0 obj\n" +
           "<< /Type /Annot /Subtype /Stamp /CreationDate (date) /M (date) /Rect [12 34 56 78] " +
