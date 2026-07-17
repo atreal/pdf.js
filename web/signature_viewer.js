@@ -87,22 +87,21 @@ function initSignatureViewer(app) {
     }
 
     listEl.replaceChildren(...signatures.map(_buildSignatureItem));
+    const anyModified = signatures.some(
+      sig => _integrityState(sig) === "modified"
+    );
     if (summaryEl) {
       const n = signatures.length;
-      const docModified = signatures.some(
-        sig => sig.coversWholeDocument === false
-      );
       const head =
         n === 1
           ? "1 signature électronique détectée"
           : `${n} signatures électroniques détectées`;
-      const tail = docModified
+      const tail = anyModified
         ? "— document modifié après signature"
         : "— intégrité non vérifiée crypto.";
       summaryEl.textContent = `${head} ${tail}`;
     }
     // Surface modification with a different banner accent.
-    const anyModified = signatures.some(s => s.coversWholeDocument === false);
     banner.classList.toggle("signaturesBannerWarn", anyModified);
     banner.removeAttribute("hidden");
   };
@@ -143,16 +142,38 @@ function _buildSignatureItem(sig) {
     li.append(dateEl);
   }
 
-  if (sig.coversWholeDocument === true) {
-    const okEl = document.createElement("div");
-    okEl.className = "signaturesPanelItemMeta signaturesPanelItemOk";
-    okEl.textContent = "Document non modifié après cette signature";
-    li.append(okEl);
-  } else if (sig.coversWholeDocument === false) {
-    const koEl = document.createElement("div");
-    koEl.className = "signaturesPanelItemMeta signaturesPanelItemKo";
-    koEl.textContent = "Document modifié après cette signature";
-    li.append(koEl);
+  switch (_integrityState(sig)) {
+    case "intact": {
+      const okEl = document.createElement("div");
+      okEl.className = "signaturesPanelItemMeta signaturesPanelItemOk";
+      okEl.textContent = "Document non modifié après cette signature";
+      li.append(okEl);
+      break;
+    }
+    case "permitted": {
+      const okEl = document.createElement("div");
+      okEl.className = "signaturesPanelItemMeta signaturesPanelItemOk";
+      okEl.textContent =
+        "Données de validation ajoutées après cette signature " +
+        "(horodatage, LTV ou signature supplémentaire) — contenu non modifié";
+      li.append(okEl);
+      break;
+    }
+    case "modified": {
+      const koEl = document.createElement("div");
+      koEl.className = "signaturesPanelItemMeta signaturesPanelItemKo";
+      koEl.textContent = "Document modifié après cette signature";
+      li.append(koEl);
+      break;
+    }
+    case "unknown": {
+      const el = document.createElement("div");
+      el.className = "signaturesPanelItemMeta";
+      el.textContent =
+        "Intégrité post-signature non analysable pour cette signature";
+      li.append(el);
+      break;
+    }
   }
 
   for (const [label, value] of [
@@ -175,6 +196,37 @@ function _buildSignatureItem(sig) {
   }
 
   return li;
+}
+
+/**
+ * Reduce the worker's structural analysis to a display state.
+ *
+ * `postSignatureUpdate` (when present) is authoritative: it distinguishes
+ * permitted post-signature updates (LTV /DSS data, document timestamps,
+ * additional signatures) from real content modifications. The raw
+ * `coversWholeDocument` flag only serves as fallback for an older worker
+ * that did not emit `postSignatureUpdate`.
+ *
+ * @returns {"intact" | "permitted" | "modified" | "unknown" | "none"}
+ */
+function _integrityState(sig) {
+  switch (sig.postSignatureUpdate) {
+    case "none":
+      return "intact";
+    case "permitted":
+      return "permitted";
+    case "modification":
+      return "modified";
+    case "indeterminate":
+      return "unknown";
+  }
+  if (sig.coversWholeDocument === true) {
+    return "intact";
+  }
+  if (sig.coversWholeDocument === false) {
+    return "modified";
+  }
+  return "none";
 }
 
 /**

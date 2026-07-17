@@ -14,6 +14,10 @@
  */
 
 import {
+  analyzePostSignatureUpdate,
+  PostSignatureUpdate,
+} from "./signature_integrity.js";
+import {
   AnnotationEditorPrefix,
   assert,
   FormatError,
@@ -2080,6 +2084,36 @@ class PDFDocument {
             visitedRefs,
             documentLength
           );
+        }
+        // Qualify the bytes located after each signed range: LTV data
+        // (/DSS), document timestamps or additional signatures are
+        // permitted updates, not modifications of the signed content.
+        for (const signature of signatures) {
+          signature.postSignatureUpdate = null;
+          const { byteRange } = signature;
+          if (
+            !Array.isArray(byteRange) ||
+            byteRange.length !== 4 ||
+            typeof documentLength !== "number"
+          ) {
+            continue;
+          }
+          try {
+            signature.postSignatureUpdate = await analyzePostSignatureUpdate({
+              xref: this.xref,
+              stream: this.stream,
+              signedEnd: byteRange[2] + byteRange[3],
+              documentLength,
+            });
+          } catch (reason) {
+            warn(`signatures - analyzePostSignatureUpdate: "${reason}".`);
+            signature.postSignatureUpdate = PostSignatureUpdate.INDETERMINATE;
+          }
+          if (signature.postSignatureUpdate === PostSignatureUpdate.NONE) {
+            // Trailing whitespace after %%EOF must not count as a
+            // modification.
+            signature.coversWholeDocument = true;
+          }
         }
         return signatures.length > 0 ? signatures : null;
       });
