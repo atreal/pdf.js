@@ -1010,10 +1010,10 @@ gulp.task("release-brotli", async function (done) {
 });
 
 function createBuildNumber(done) {
-  console.log("\n### Getting extension build number");
+  console.log("\n### Getting atReal extension build number");
 
   exec(
-    "git log --format=oneline " + config.baseVersion + "..",
+    "git log --format=oneline " + config.upstreamBaseVersion + "..",
     function (err, stdout, stderr) {
       let buildNumber = 0;
       if (!err) {
@@ -1027,7 +1027,7 @@ function createBuildNumber(done) {
 
       console.log("Extension build number: " + buildNumber);
 
-      const version = config.versionPrefix + buildNumber;
+      const version = `${config.upstreamBaseVersion}-atreal${buildNumber}`;
 
       exec('git log --format="%h" -n 1', function (err2, stdout2, stderr2) {
         let buildCommit = "";
