@@ -52,86 +52,40 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build generic viewer
-        run: npx gulp generic
+      - name: Build generic viewers
+        run: npx gulp generic generic-legacy
 
-      - name: Package
+      - name: Packages
         id: pkg
         run: |
           TAG="${{ steps.ref.outputs.tag }}"
           OUT="${TAG}.zip"
           (cd build/generic && zip -r "../../$OUT" .)
-          echo "filename=$OUT" >> "$GITHUB_OUTPUT"
-          echo "sha256=$(sha256sum "$OUT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "filename_modern=$OUT" >> "$GITHUB_OUTPUT"
           ls -la "$OUT"
 
-      - name: Package npm tarball
-        id: npmpkg
-        # Tarball npm consommable par `npm ci` côté openADS (package-copy-vendor.sh
-        # le copie ensuite vers app/lib/pdfjs-measure/). La version npm est le tag
-        # sans le préfixe `v` (ex. 6.0.227-ar01) — semver-valide (prerelease
-        # alphanumérique).
-        run: |
-          TAG="${{ steps.ref.outputs.tag }}"
-          VERSION="${TAG#v}"
-          rm -rf npmpkg
-          mkdir -p npmpkg
-          cp -r build/generic/web npmpkg/web
-          cp -r build/generic/build npmpkg/build
-          cat > npmpkg/package.json <<JSON
-          {
-            "name": "@atreal/pdfjs-openads-dist",
-            "version": "${VERSION}",
-            "description": "Build générique pré-compilé du fork atreal/pdf.js (éditeur de mesure + bridge openADS).",
-            "license": "Apache-2.0",
-            "files": ["web", "build"]
-          }
-          JSON
-          ( cd npmpkg && npm pack )
-          TGZ="$(ls npmpkg/*.tgz)"
-          echo "filename=$(basename "$TGZ")" >> "$GITHUB_OUTPUT"
-          echo "path=$TGZ" >> "$GITHUB_OUTPUT"
-          echo "sha256=$(sha256sum "$TGZ" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          ls -la "$TGZ"
+          OUT="${TAG}-legacy.zip"
+          (cd build/generic-legacy && zip -r "../../$OUT" .)
+          echo "filename_legacy=$OUT" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"
 
       - name: Generate release notes body
         id: notes
         run: |
           cat <<EOF > release_notes.md
-          Built from \`${{ steps.ref.outputs.tag }}\`.
+          ## Available versions
 
-          ## Contenu
+          Two builds are available: the default "modern" build for _latest_ browsers, and a legacy supporting older browers,
+          [based on upstream pdf.js](https://github.com/mozilla/pdf.js/wiki/Frequently-Asked-Questions#which-browsersenvironments-are-supported)
 
-          Archive \`${{ steps.pkg.outputs.filename }}\` : sortie de \`npx gulp generic\` — viewer prêt à servir derrière n'importe quel serveur HTTP.
-
-          \`\`\`
-          web/viewer.html         ← page d'entrée
-          web/viewer.mjs          ← bundle viewer
-          build/pdf.mjs           ← API pdf.js
-          build/pdf.worker.mjs    ← worker
-          \`\`\`
-
-          ## Installation rapide
+          ## Quick install
 
           \`\`\`bash
-          curl -L https://github.com/atreal/pdf.js/releases/download/${{ steps.ref.outputs.tag }}/${{ steps.pkg.outputs.filename }} -o pdfjs.zip
+          curl -L https://github.com/atreal/pdf.js/releases/download/${{ steps.ref.outputs.tag }}/${{ steps.pkg.outputs.filename_modern }} -o pdfjs.zip
+          # or for the legacy build
+          # curl -L https://github.com/atreal/pdf.js/releases/download/${{ steps.ref.outputs.tag }}/${{ steps.pkg.outputs.filename_legacy }} -o pdfjs.zip
           unzip pdfjs.zip -d /var/www/pdfjs/
-          # Ouvrir : http://serveur/pdfjs/web/viewer.html?file=...
-          \`\`\`
-
-          ## Intégration openADS (npm)
-
-          Tarball npm \`${{ steps.npmpkg.outputs.filename }}\` consommable par \`npm ci\` :
-
-          \`\`\`json
-          "@atreal/pdfjs-openads-dist": "https://github.com/atreal/pdf.js/releases/download/${{ steps.ref.outputs.tag }}/${{ steps.npmpkg.outputs.filename }}"
-          \`\`\`
-
-          ## Vérification d'intégrité
-
-          \`\`\`
-          zip    sha256: ${{ steps.pkg.outputs.sha256 }}
-          tarball sha256: ${{ steps.npmpkg.outputs.sha256 }}
+          # Open : http://SERVER/pdfjs/web/viewer.html?file=...
           \`\`\`
           EOF
 
@@ -141,6 +95,7 @@ jobs:
           tag_name: ${{ steps.ref.outputs.tag }}
           name: ${{ steps.ref.outputs.tag }}
           body_path: release_notes.md
+          generate_release_notes: true
           files: |
-            ${{ steps.pkg.outputs.filename }}
-            ${{ steps.npmpkg.outputs.path }}
+            ${{ steps.pkg.outputs.filename_modern }}
+            ${{ steps.pkg.outputs.filename_legacy }}
